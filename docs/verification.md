@@ -22,8 +22,8 @@ JSZip 3.10.1 distribution SHA-256: `acc7e41455a80765b5fd9c7ee1b8078a6d160bbbca45
 | Open 100+ JPEG pages | Generated 120-page JPEG CBZ in Chromium | Pending |
 | Numerical ordering | Real ZIP unit tests plus browser filename/page agreement | Pending |
 | RTL touch/swipe | Browser taps + synthetic touch events; gesture unit tests | Pending |
-| Progress after reload | Reload/reselect integration passed | Pending |
-| Progress after Safari restart | New store/context with persisted storage passed | Actual Safari termination pending |
+| Progress after reload | Automatic reopen from IndexedDB plus missing-copy reselection passed | Pending |
+| Progress after Safari restart | New Chromium process/profile automatically restores the saved archive/page | Actual Safari/Home Screen termination pending |
 | Lock/unlock | Event recovery and cancellation tested | Short/extended real locks pending |
 | Background/return | pagehide/pageshow simulated; URL invalidation tested | Actual iOS backgrounding pending |
 | Touch zoom (replaces fullscreen) | Chromium touch input and WebP image/canvas zoom tested; see latest record below | Real pinch/double tap pending |
@@ -75,3 +75,15 @@ Real iPad mini 2 / Safari 12 pinch, double-tap timing, lock/resume and GPU memor
 A small current/total output now stays at the bottom of the reader when the toolbar is hidden. It uses the same position update as the toolbar counter, respects the safe-area inset, and lets touches pass through. The original toolbar counter is used while controls are visible. The output is outside the transformed image/canvas, so zoom does not enlarge it.
 
 The browser regression first failed because the hidden-toolbar indicator was absent. The updated 120-page suite passes, including page 57 → 58 → 57 with controls hidden, the indicator staying inside the viewport, and an actual touch through its center revealing the toolbar and hiding the duplicate counter. The portrait screenshot was visually inspected. All 27 Node tests pass and app.js parses as ES5. Physical iPad/Safari 12 layout and safe-area behavior remain pending.
+
+
+## Automatic resume after process loss — 2026-11-02
+
+The previous release saved only page metadata, so a terminated Home Screen/Safari process always returned to the library. The latest compressed archive is now copied as a Blob into IndexedDB after a valid open, with ready/failure status in the toolbar. The small synchronous checkpoint also records whether reading was active. Startup reopens only the matching copy at the saved page; explicit Library exit disables automatic opening. Continue reuses the saved book, and Remove saved file keeps page history. No archive data is uploaded or eagerly decompressed into storage.
+
+- The new browser regression first reproduced the missing page after reload. The fix passes reload and complete browser-process/profile close/relaunch at page 57 without a picker. Tests simulate the standalone flag; this is not a real iOS Home Screen process.
+- Deliberate Library exit, Continue, missing-copy eviction/reselection, quota failure while replacing a book, rejecting an older mismatched copy, corrupt stored ZIP, removal without checkpoint loss, serialized replacements/removal and an accelerated stuck-IDB timeout all pass. Database completion, not request success, marks a save ready; connections close after each operation.
+- All 28 Node tests pass, including persistence of the reading/Library marker. Changed/new runtime scripts parse as ES5.
+- The existing 120-page JPEG/reselection suite passes with archive storage unavailable, covering the fallback path. Native and forced fallback 190-page WebP suites both pass automatic reopening at page 57 and subsequent navigation/cleanup. The touch-zoom suite also passes.
+
+Actual iPad mini 2 / iOS 12.5.7 long app switching, OS process termination, available disk quota, standalone storage and Blob persistence remain untested. A completed local copy and retained website storage are required for automatic reopening. The site still requires network access for a fresh launch/reload; there is no offline service worker.

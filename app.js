@@ -8,6 +8,9 @@
   var expectedBook = null, inspecting = false, resumeTimer = null, touch = null, pinch = null;
   var zoom = { scale: 1, x: 0, y: 0 }, pendingTap = null, tapTimer = null;
   var backgrounded = document.hidden, lastTouch = 0, storageFailed = false;
+  var cache, cachedId = null;
+  try { cache = window.CBZArchiveCache.create(window.indexedDB); }
+  catch (error) { cache = window.CBZArchiveCache.create(null); }
   var storage;
   try { storage = window.localStorage; } catch (error) { storage = null; }
   var store = Core.createStore(storage, function () {
@@ -36,17 +39,20 @@
       action.className = 'recent-action';
       name.textContent = book.name.replace(/\.cbz$/i, '');
       detail.textContent = 'Page ' + (book.page + 1) + ' of ' + book.pageCount;
-      action.textContent = 'Select file';
-      button.setAttribute('aria-label', 'Select ' + book.name + ' and resume at page ' + (book.page + 1));
+      action.textContent = cachedId === book.id ? 'Continue' : 'Select file';
+      button.setAttribute('aria-label', action.textContent + ' ' + book.name + ' at page ' + (book.page + 1));
       info.appendChild(name); info.appendChild(detail); button.appendChild(info); button.appendChild(action);
-      button.addEventListener('click', function () { pickFile(book); });
+      button.addEventListener('click', function () { if (cachedId === book.id) restoreBook(book); else pickFile(book); });
       li.appendChild(button); list.appendChild(li);
     });
     byId('install-hint').hidden = navigator.standalone === true;
+    byId('forget-file').hidden = !cachedId;
+    byId('forget-file').disabled = opening;
   }
 
   function pickFile(book, check) {
     if (opening) return;
+    openGeneration++; // A manual selection takes precedence over startup restoration.
     expectedBook = book || null;
     inspecting = check === true;
     input.value = '';
@@ -177,12 +183,88 @@
 
   function toLibrary() {
     openGeneration++;
-    checkpoint(); queue.cancel(); clearImage();
+    checkpoint(); store.setReading(false); queue.cancel(); clearImage();
     WebP.release();
     pages = []; file = null;
     reader.hidden = true; library.hidden = false; document.body.classList.remove('reading');
     document.title = 'Manga reader'; controls(false); libraryMessage(''); renderLibrary();
     byId('open-file').focus();
+  }
+
+  function reselection(book, reason) {
+    libraryMessage((reason ? reason + ' ' : '') + 'Select ' + book.name + ' to continue at page ' + (book.page + 1) + '. Your place is remembered.');
+  }
+
+  function savedFile(record) {
+    var metadata = record && record.metadata, blob = record && record.blob;
+    return metadata && typeof metadata.name === 'string' && typeof metadata.lastModified === 'number' &&
+      isFinite(metadata.lastModified) && blob instanceof Blob && blob.size > 0 &&
+      blob.size <= Archive.MAX_ARCHIVE_BYTES && metadata.size === blob.size;
+  }
+
+  function saveFile(selected, metadata) {
+    var id = Core.fileId(metadata);
+    byId('resume-status').textContent = 'Saving a local copy for automatic resume…';
+    Promise.resolve().then(function () {
+      return cache.save(metadata, selected.slice(0, selected.size, 'application/zip'));
+    }).then(function () {
+      cachedId = id; renderLibrary();
+      if (file && Core.fileId(file) === id) byId('resume-status').textContent = storageFailed ?
+        'Local copy saved, but progress storage is unavailable.' : 'Local copy ready. Reading resumes here after a restart.';
+    }, function () {
+      if (file && Core.fileId(file) === id) byId('resume-status').textContent =
+        'Local copy could not be saved. After a restart, select this file again; your page is remembered if storage is available.';
+    });
+  }
+
+  function restoreBook(book) {
+    if (opening) return;
+    var generation = ++openGeneration;
+    libraryMessage('Restoring ' + book.name + ' at page ' + (book.page + 1) + '…');
+    cache.read().then(function (record) {
+      if (generation !== openGeneration) return;
+      if (savedFile(record) && Core.fileId(record.metadata) === book.id) {
+        openBook(record.blob, record.metadata, book, true, false);
+      } else { cachedId = null; renderLibrary(); reselection(book, 'The local copy is unavailable.'); }
+    }, function () { if (generation === openGeneration) reselection(book, 'Local file storage is unavailable.'); });
+  }
+
+  function openBook(selected, metadata, expected, fromCache, checking) {
+    opening = true; byId('open-file').disabled = true; byId('check-file').disabled = true; renderLibrary();
+    var generation = ++openGeneration, record = store.find(metadata) || expected;
+    libraryMessage((checking ? 'Checking ' : 'Opening ') + metadata.name + '…');
+    byId('archive-details').hidden = true;
+    if (!reader.hidden) { queue.cancel(); clearImage(); WebP.release(); message('Opening archive…', false); }
+    pages = []; // Release the old compressed archive before reading its replacement.
+    var operation = Promise.resolve().then(function () {
+      return checking ? Archive.inspect(window.JSZip, selected) : Archive.open(window.JSZip, selected);
+    });
+    operation.then(function (entries) {
+      if (generation !== openGeneration) return;
+      if (checking) {
+        byId('archive-report').value = entries;
+        byId('archive-details').hidden = false;
+        libraryMessage('Archive checked locally. Share the report below; the CBZ does not need to be sent.');
+        return;
+      }
+      pages = entries; file = metadata; current = Core.restoredPage(record, pages);
+      input.value = ''; checkpoint(); store.setReading(true); updatePosition();
+      byId('book-title').textContent = metadata.name.replace(/\.cbz$/i, '');
+      document.title = byId('book-title').textContent + ' · Manga reader';
+      library.hidden = true; reader.hidden = false; backgrounded = document.hidden;
+      document.body.classList.add('reading');
+      controls(!fromCache); resize(); requestPage();
+      if (fromCache) byId('resume-status').textContent = 'Reading restored from the local copy.';
+      else saveFile(selected, metadata);
+    }, function (error) {
+      if (generation !== openGeneration) return;
+      if (reader.hidden) {
+        if (fromCache) { cachedId = null; renderLibrary(); reselection(record, 'The saved archive could not be opened.'); }
+        else libraryMessage(error.message);
+      } else pageError(error);
+    }).then(function () {
+      opening = false; byId('open-file').disabled = false; byId('check-file').disabled = false; input.value = ''; renderLibrary();
+    });
   }
 
   input.addEventListener('change', function () {
@@ -198,36 +280,8 @@
       if (reader.hidden) libraryMessage(tooLarge); else message(tooLarge, true);
       input.value = ''; return;
     }
-    opening = true; byId('open-file').disabled = true; byId('check-file').disabled = true; renderLibrary();
-    var generation = ++openGeneration;
-    libraryMessage((checking ? 'Checking ' : 'Opening ') + selected.name + '…');
-    byId('archive-details').hidden = true;
-    if (!reader.hidden) { queue.cancel(); clearImage(); WebP.release(); message('Opening archive…', false); }
     var metadata = { name: selected.name, size: selected.size, lastModified: selected.lastModified || 0 };
-    var record = store.find(metadata) || expected;
-    pages = []; // Release the old compressed archive before reading its replacement.
-    var operation = checking ? Archive.inspect(window.JSZip, selected) : Archive.open(window.JSZip, selected);
-    operation.then(function (entries) {
-      if (generation !== openGeneration) return;
-      if (checking) {
-        byId('archive-report').value = entries;
-        byId('archive-details').hidden = false;
-        libraryMessage('Archive checked locally. Share the report below; the CBZ does not need to be sent.');
-        return;
-      }
-      pages = entries; file = metadata; current = Core.restoredPage(record, pages);
-      input.value = ''; checkpoint(); updatePosition();
-      byId('book-title').textContent = metadata.name.replace(/\.cbz$/i, '');
-      document.title = byId('book-title').textContent + ' · Manga reader';
-      library.hidden = true; reader.hidden = false; backgrounded = document.hidden;
-      document.body.classList.add('reading');
-      controls(true); resize(); requestPage();
-    }, function (error) {
-      if (generation !== openGeneration) return;
-      if (reader.hidden) libraryMessage(error.message); else pageError(error);
-    }).then(function () {
-      opening = false; byId('open-file').disabled = false; byId('check-file').disabled = false; input.value = ''; renderLibrary();
-    });
+    openBook(selected, metadata, expected, false, checking);
   });
 
   function resize() {
@@ -379,6 +433,13 @@
   byId('retry-page').addEventListener('click', function () { if (pages.length) requestPage(); else pickFile(store.last()); });
   byId('back-library').addEventListener('click', toLibrary);
   byId('error-library').addEventListener('click', toLibrary);
+  byId('forget-file').addEventListener('click', function () {
+    openGeneration++;
+    cache.clear().then(function () {
+      cachedId = null; store.setReading(false); renderLibrary();
+      libraryMessage('Saved file removed. Your reading progress is kept.');
+    }, function () { libraryMessage('The saved file could not be removed. Try again.'); });
+  });
   slider.addEventListener('input', function () { goTo(Number(slider.value) - 1); });
   byId('swipe-direction').value = store.reverseSwipe() ? 'left' : 'right';
   byId('swipe-direction').addEventListener('change', function (event) { store.setReverseSwipe(event.target.value === 'left'); });
@@ -398,6 +459,21 @@
   window.addEventListener('resize', resize);
   window.addEventListener('orientationchange', function () { resize(); window.setTimeout(resize, 250); });
   renderLibrary(); resize();
-  var last = store.last();
-  if (last) libraryMessage('Select ' + last.name + ' to continue at page ' + (last.page + 1) + '. Your place is remembered; the file needs to be selected again.');
+  var last = store.last(), startupGeneration = openGeneration;
+  if (last) {
+    if (store.reading()) libraryMessage('Restoring ' + last.name + ' at page ' + (last.page + 1) + '…');
+    else reselection(last);
+  }
+  cache.read().then(function (record) {
+    if (startupGeneration !== openGeneration) return;
+    cachedId = savedFile(record) ? Core.fileId(record.metadata) : null;
+    renderLibrary();
+    if (!last) return;
+    if (store.reading()) {
+      if (cachedId === last.id) openBook(record.blob, record.metadata, last, true, false);
+      else reselection(last, 'The local copy is unavailable.');
+    } else if (cachedId === last.id) libraryMessage('Tap Continue to read ' + last.name + ' at page ' + (last.page + 1) + '.');
+  }, function () {
+    if (startupGeneration === openGeneration && last) reselection(last, 'Local file storage is unavailable.');
+  });
 }());

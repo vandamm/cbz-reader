@@ -12,6 +12,8 @@ const makeFixture = require('./make-fixture.cjs');
   const context = await browser.newContext({ viewport: { width: 768, height: 1024 }, hasTouch: true });
   const errors = [];
   await context.addInitScript(() => {
+    // Exercise file-reselection fallback when local archive storage is unavailable.
+    Object.defineProperty(window, 'indexedDB', { get: () => undefined });
     window.liveURLs = new Set(); window.peakURLs = 0;
     const make = URL.createObjectURL.bind(URL), drop = URL.revokeObjectURL.bind(URL);
     URL.createObjectURL = blob => { const u = make(blob); liveURLs.add(u); window.peakURLs = Math.max(peakURLs, liveURLs.size); return u; };
@@ -127,6 +129,7 @@ const makeFixture = require('./make-fixture.cjs');
     const state = await context.storageState();
     await context.close();
     const restarted = await browser.newContext({ storageState: state });
+    await restarted.addInitScript(() => Object.defineProperty(window, 'indexedDB', { get: () => undefined }));
     const fresh = await restarted.newPage(); fresh.on('pageerror', e => errors.push(e.message));
     await fresh.goto(url); assert.match(await fresh.locator('#library-status').textContent(), /page 57/);
     await fresh.locator('#file-input').setInputFiles(fixture);

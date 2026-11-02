@@ -79,6 +79,17 @@ test('swipe preference persists', () => {
   assert.equal(Core.createStore(disk).reverseSwipe(), true);
 });
 
+test('restart distinguishes an open reader from an intentional return to Library', () => {
+  const disk = storage();
+  let store = Core.createStore(disk);
+  assert.equal(store.reading(), false);
+  store.save(file(), 56, 120, '57.jpg'); store.setReading(true);
+  store = Core.createStore(disk);
+  assert.equal(store.reading(), true); assert.equal(store.last().page, 56);
+  store.setReading(false); store = Core.createStore(disk);
+  assert.equal(store.reading(), false); assert.equal(store.last().page, 56);
+});
+
 test('page queue serializes extraction, skips obsolete requests and disposes stale resources', async () => {
   const gates = [], started = [], shown = [], released = [];
   const queue = Core.createPageQueue(page => {

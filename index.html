@@ -12,10 +12,11 @@
   <title>Manga reader</title>
   <link rel="stylesheet" href="styles.css?v=6">
   <script defer src="vendor/jszip.min.js"></script>
-  <script defer src="core.js?v=3"></script>
+  <script defer src="core.js?v=7"></script>
   <script defer src="archive.js?v=3"></script>
   <script defer src="webp.js?v=3"></script>
-  <script defer src="app.js?v=6"></script>
+  <script defer src="archive-cache.js?v=7"></script>
+  <script defer src="app.js?v=7"></script>
 </head>
 <body>
   <p id="storage-warning" class="storage-warning" role="alert" hidden>Progress cannot be saved. Allow website storage and use a regular Safari tab. Keep a note of your page before closing.</p>
@@ -27,7 +28,7 @@
     </header>
     <button type="button" id="open-file" class="primary">Open CBZ <span aria-hidden="true">＋</span></button>
     <input type="file" id="file-input" class="file-input" tabindex="-1" aria-label="Choose a CBZ archive">
-    <p class="file-note">Choose a .cbz file from Files. It stays on this device.</p>
+    <p class="file-note">Choose a .cbz file from Files. The last opened book is kept on this device so reading can resume after a restart. Nothing is uploaded.</p>
     <button type="button" id="check-file">Check CBZ</button>
     <p class="file-note">Missing pages? Check the archive without uploading it.</p>
     <p id="library-status" class="library-status" role="status" hidden></p>
@@ -40,6 +41,8 @@
       <h2 id="recent-heading">Pick up where you left off</h2>
       <p id="empty-library" class="muted">Books you open will appear here with your saved page.</p>
       <ul id="recent-list"></ul>
+      <button type="button" id="forget-file" hidden>Remove saved file</button>
+      <p class="file-note">Only the latest book is kept. Removing its local copy keeps your page history.</p>
     </section>
     <section class="reading-guide" aria-label="Reading gestures">
       <div><span aria-hidden="true">‹</span><strong>Tap left</strong><small>Previous page</small></div>
@@ -68,6 +71,7 @@
       <div class="page-controls"><output id="page-count" for="page-slider" aria-live="polite"></output><input type="range" id="page-slider" min="1" max="1" value="1" step="1" aria-label="Page"></div>
       <div class="toolbar-bottom"><label for="swipe-direction">Next page:</label><select id="swipe-direction"><option value="right">Swipe right</option><option value="left">Swipe left</option></select><span id="save-state">Progress saved</span></div>
       <p class="zoom-note">Pinch or double tap to zoom · Drag to move · Double tap again to fit</p>
+      <p id="resume-status" class="zoom-note" role="status"></p>
     </div>
   </section>
 </body>

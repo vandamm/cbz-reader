@@ -48,7 +48,7 @@
   }
 
   function createStore(storage, onError) {
-    var data = { books: [], lastId: null, reverseSwipe: false };
+    var data = { books: [], lastId: null, reverseSwipe: false, reading: false };
     function report(error) { if (onError) onError(error); }
     try {
       var raw = storage.getItem(KEY);
@@ -61,6 +61,7 @@
         });
         data.lastId = saved.lastId;
         data.reverseSwipe = saved.reverseSwipe === true;
+        data.reading = saved.reading === true;
       }
     } catch (error) { report(error); }
     function write() {
@@ -91,6 +92,8 @@
         return write();
       },
       reverseSwipe: function () { return data.reverseSwipe; },
+      reading: function () { return data.reading; },
+      setReading: function (reading) { data.reading = reading === true; return write(); },
       setReverseSwipe: function (reverse) { data.reverseSwipe = reverse === true; return write(); },
       check: write
     };

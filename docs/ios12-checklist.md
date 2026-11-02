@@ -6,7 +6,7 @@ Record device/OS, URL, Safari tab vs Home Screen, archive compressed size, typic
 
 ## Opening and reading
 
-- [ ] Open https://vandamm.github.io/cbz-reader/?v=5 in Safari on the iPad (or use the optional Mac/LAN server).
+- [ ] Open https://vandamm.github.io/cbz-reader/?v=7 in Safari on the iPad (or use the optional Mac/LAN server).
 - [ ] Open the generated 120-page JPEG CBZ from On My iPad in Files.
 - [ ] Open a 100+ page real JPEG manga, a PNG book, and an archive with nested folders.
 - [ ] Open the mixed JPEG/WebP manga: all 190 images must appear, with the 10 JSON files skipped. Check both lossy/lossless WebP and transparency; static pages only. On Safari 12 this exercises the worker/canvas fallback.
@@ -23,9 +23,11 @@ Record device/OS, URL, Safari tab vs Home Screen, archive compressed size, typic
 
 ## Checkpoints and restart
 
-- [ ] Navigate to page **57**, immediately reload, select the same file: page **57** returns.
-- [ ] Navigate to page **57**, force-close Safari immediately, relaunch, open the same URL, select the file: page **57** returns.
-- [ ] Repeat after rebooting the iPad.
+- [ ] Open the book and wait for **Local copy ready**. Navigate to page **57**, immediately reload: page **57** returns automatically without selecting the file.
+- [ ] After the local copy is ready, navigate to page **57**, force-close Safari, relaunch the same URL: page **57** returns automatically. Repeat from the Home Screen icon, including long switching to another app.
+- [ ] Repeat after rebooting the iPad. Also interrupt the initial copy save: if it did not finish, reselection must preserve page **57**.
+- [ ] Exit to Library explicitly, close and relaunch: stay in Library. Tap Continue: restore the saved book without a picker. Remove saved file: keep history, and request reselection next time.
+- [ ] With local file storage refused/full, or a missing/corrupt copy, confirm a clear fallback and remembered page after reselection. Replacing a book saves only the latest compressed archive and never resumes an older mismatched file.
 - [ ] Open a second book and move elsewhere; reopening each book restores its own page.
 - [ ] Reselect from iCloud Files after downloading locally. Modification-time drift must not reset a unique name+size match.
 - [ ] Through a recent entry, choose a shorter revised file with the same filename. Restore the old page filename if present; otherwise clamp to its last page. Original checkpoint survives a failed selection or invalid archive.
@@ -34,7 +36,7 @@ Record device/OS, URL, Safari tab vs Home Screen, archive compressed size, typic
 
 ## Lock, background and resource recovery
 
-Perform each case at page **57**, then check counter, page content, right/left navigation, toolbar, slider and touch zoom. If iOS reloads the page, file reselection is acceptable; losing the saved position is not.
+Perform each case at page **57**, then check counter, page content, right/left navigation, toolbar, slider and touch zoom. After a ready local copy, an iOS page reload should automatically reopen the same book/page. File reselection is a fallback when storage or its copy is unavailable; losing the saved position is not acceptable.
 
 - [ ] Lock for **30 seconds**, unlock and continue.
 - [ ] Lock for **5 minutes**, unlock and continue.

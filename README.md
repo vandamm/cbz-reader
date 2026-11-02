@@ -6,7 +6,7 @@ A buildless, touch-friendly CBZ reader for an iPad mini 2 running Safari on iOS 
 
 Open **https://vandamm.github.io/cbz-reader/** in Safari and tap **Open CBZ** to select a manga from Files. No installation, build, developer tools, Mac or local server is needed. Use Share > Add to Home Screen for more reading space.
 
-Keep using this same URL to retain your reading history. Progress from a previous localhost/LAN URL belongs to that different browser origin and does not transfer automatically. Internet access is needed to launch/reload the site; selected manga still stays on your device.
+Keep using this same URL to retain your reading history. Progress from a previous localhost/LAN URL belongs to that different browser origin and does not transfer automatically. Internet access is needed to launch/reload the site; selected manga and its saved local copy stay on your device. Archive persistence does not add guaranteed offline launch.
 
 If a book appears to contain only one page, return to Library and tap **Check CBZ**, then select the same file. The report lists file formats, the JPEG/PNG/WebP page count and sample paths. Send that short text or a screenshot instead of the large CBZ. Inspection stays on the device, does not decompress images or change saved progress, and uses the same 200 MiB archive safety limit. The report uses ZIP filenames/extensions; it does not verify the contents of unsupported images.
 
@@ -32,7 +32,7 @@ The file picker deliberately has no `accept` filter: older Files providers may c
 
 This development server exposes this project folder to your Wi-Fi network. Serve this folder, not a folder containing private files. Your selected manga can live elsewhere in Files; selecting it does not copy it to the server. Stop the server with Control-C.
 
-For deployment, copy `index.html`, `styles.css`, `core.js`, `archive.js`, `app.js`, `webp.js`, `webp-runtime.js`, `webp-worker.js`, `apple-touch-icon.png`, and the `vendor` directory to any static host. No build step is required.
+For deployment, copy `index.html`, `styles.css`, `core.js`, `archive.js`, `archive-cache.js`, `app.js`, `webp.js`, `webp-runtime.js`, `webp-worker.js`, `apple-touch-icon.png`, and the `vendor` directory to any static host. No build step is required.
 
 ## Reading
 
@@ -43,18 +43,22 @@ For deployment, copy `index.html`, `styles.css`, `core.js`, `archive.js`, `app.j
 - **Pinch:** enlarge/shrink the page between its fitted size and 4×. **Double tap:** switch between 2× at the tapped point and the original fitted size.
 - **Drag an enlarged page:** move around it. Side taps and swipes do not turn pages while enlarged; double tap to return to fit before continuing. Center taps still show controls, and the slider can change pages at any scale.
 - Use the page slider to jump. Its page position is saved immediately on every change.
-- **Library** closes the archive and releases image resources. Recent entries let you select the file again and resume.
+- **Library** closes the in-memory archive and releases image resources. The latest saved book has a **Continue** entry; other books ask you to select their file again. **Remove saved file** frees the stored archive while keeping page history.
 - Arrow keys navigate; Space shows controls when the page surface has keyboard focus. Buttons, select and slider also support keyboard/VoiceOver.
 
 Each page opens fitted to the usable viewport without cropping or stretching. Changing pages, rotating/resizing the viewport or returning from background resets the zoom to fit; the saved page is unchanged. Black space is expected when image and screen proportions differ. Zoom uses a CSS transform on the existing image/canvas, without decoding another copy or enlarging the canvas buffer. Single touch taps wait briefly for a possible second tap, so a double tap does not turn the page first. Long-press selection and browser zoom on the reading surface are intercepted. Library and toolbar keep ordinary browser accessibility behavior; Safari may still reserve its own edge/system gestures. Escape resets zoom and reveals controls.
 
 ## Progress and reselection
 
-Progress is written synchronously to `localStorage` **before** image loading begins, on every page change. It is also saved on visibility loss, `pagehide`, window blur and returning to the library. Each checkpoint contains filename, byte size, available `lastModified`, zero-based page index, page filename and page count. No image or archive is saved in browser storage.
+Progress is written synchronously to `localStorage` **before** image loading begins, on every page change. It is also saved on visibility loss, `pagehide`, window blur and returning to the library. Each checkpoint contains filename, byte size, available `lastModified`, zero-based page index, page filename and page count. The checkpoint stays small. Separately, IndexedDB keeps one compressed CBZ locally for automatic resume; pages are not extracted into storage.
 
-A reload or terminated Safari process cannot automatically reopen a local file. The library names the last book and page, and asks you to select it again. Selecting the same file restores its checkpoint. A unique filename+size match tolerates a Files provider changing the modification timestamp. Exact name/size/metadata matches remain independent.
+After a successful open, the reader saves a local Blob copy of the compressed archive in IndexedDB. Wait for **Local copy ready** in the toolbar on the first open. Only the latest book is retained, and nothing is uploaded. A reload or terminated Home Screen/Safari process automatically reopens that copy at the last checkpoint. Returning to **Library** explicitly disables automatic opening, while the recent **Continue** entry can reopen the copy without a picker. Removing the saved file keeps page history.
 
-For a revised archive whose size changed, tap its **recent entry** and select the same filename. This explicitly associates the revision with that saved position. If the old page filename exists, it is restored; otherwise the saved index is clamped to the new last page. Opening a different-sized file through **Open CBZ** treats it as a separate edition. A different filename cannot be selected for a recent entry.
+If storage is refused/full, the copy is lost/invalid, or iOS interrupts its first save, the app asks you to select the CBZ again and restores the saved page. The toolbar reports a failed copy; normal reading still works. Quotas depend on the browser and available disk space, so a 200 MiB archive limit is not a promise that caching will succeed. Database operations close their connections and time out after 30 seconds rather than blocking selection forever. Replacements/removal are serialized and only committed transactions count as saved.
+
+Selecting the same file restores its checkpoint. A unique filename+size match tolerates a Files provider changing the modification timestamp. Exact name/size/metadata matches remain independent. After updating from the version that only saved metadata, select the book once inside the Home Screen app to create its local copy. Safari and Home Screen storage may be separate on iOS 12; save and continue within the same mode.
+
+For a revised archive whose size changed, tap its **recent entry** and select the same filename. If that entry currently says Continue, first use **Remove saved file** to enable reselection. This explicitly associates the revision with that saved position. If the old page filename exists, it is restored; otherwise the saved index is clamped to the new last page. Opening a different-sized file through **Open CBZ** treats it as a separate edition. A different filename cannot be selected for a recent entry.
 
 Two distinct files with identical filename, size and modification time cannot be distinguished without reading/hashing their contents; this small reader uses metadata identity as specified. Renaming a book creates a different identity.
 
@@ -64,7 +68,7 @@ Storage belongs to the exact origin (scheme, hostname and port). Use the same UR
 
 When hidden or receiving `pagehide`, the reader checkpoints, invalidates pending display requests and releases the visible image and object URL. On `pageshow`, visibility return or window focus, it rebuilds the current page from the compressed archive, even if an old URL would appear valid. Image errors offer retry and file reselection. A timed-out load is recoverable. Viewport resize and rotation recompute the usable image area from `innerHeight`.
 
-If iOS terminates the process, the last successful checkpoint is used after launch and file reselection. The app cannot prevent iOS from killing a tab or force suspended JavaScript to run. Real short/extended screen locks and memory pressure still require device testing; use [the manual checklist](docs/ios12-checklist.md).
+If iOS terminates the process, launch reads the active-reading marker, loads the matching local archive and restores the last successful checkpoint automatically. An explicit Library exit stays in the library after relaunch. Missing or unreadable storage falls back to file reselection without resetting the page. The app cannot prevent iOS from killing a tab or force suspended JavaScript to run. Real short/extended screen locks and memory pressure still require device testing; use [the manual checklist](docs/ios12-checklist.md).
 
 ## Home Screen mode
 
@@ -95,7 +99,7 @@ The decoder and worker files come from this same site, with no CDN or uploads. T
 
 Core reading, localStorage, Files selection and touch zoom need no HTTPS. LAN HTTP works. Service workers require a secure context (HTTPS or localhost on the device); a Mac’s LAN HTTP address is not that exception. This version has **no service worker or guaranteed offline launch**, even after Add to Home Screen. Ordinary HTTP caching is not an offline guarantee. An open, in-memory archive can be read while disconnected until iOS discards the page.
 
-Runtime JavaScript uses ES5 syntax and Safari 12-compatible APIs: Promise, FileReader (through JSZip), Blob, typed arrays, object URLs, touch events and localStorage. It does not require Blob.arrayBuffer, modules, async functions, pointer events, ResizeObserver, dynamic viewport units or the File System Access API.
+Runtime JavaScript uses ES5 syntax and Safari 12-compatible APIs: Promise, FileReader (through JSZip), Blob, typed arrays, object URLs, touch events, localStorage and IndexedDB with Blob storage. It does not require Blob.arrayBuffer, modules, async functions, pointer events, ResizeObserver, dynamic viewport units or the File System Access API.
 
 ## Tests
 
@@ -119,6 +123,8 @@ PLAYWRIGHT_MODULE=/tmp/cbz-reader-checks/node_modules/playwright node tests/brow
 
 Also run `node tests/browser-webp.cjs` with the same Playwright environment to check a 190-page JPEG/WebP book in both native and forced fallback modes, including decoded pixels, checkpoint restoration, lifecycle recovery and worker cleanup.
 
+Run `node tests/browser-resume.cjs` to check a persistent browser profile across full browser-process restarts, automatic resume, explicit Library exit, Continue, missing/corrupt copies, quota failure, removal and storage timeouts. It creates and deletes its own temporary profile.
+
 Also run `node tests/browser-zoom.cjs` with that environment to check real Chromium touch input: pinch, double tap, bounded pan, gesture/navigation separation, checkpoints and zoom reset on page/viewport/lifecycle changes.
 
 Run the HTTP server first. `READER_URL` defaults to `http://127.0.0.1:8080/`; `BROWSER_EXECUTABLE` can select an existing Chromium executable. The script checks 120 JPEG page changes, navigation, reload/reselection, lifecycle event recovery, toolbar visibility, rotation, URL release, rapid jumps, revised archives and storage refusal. It creates screenshots in `tests/`. Desktop lifecycle events and viewport changes are simulations, not proof of iOS screen-lock behavior.
@@ -127,4 +133,4 @@ Run the HTTP server first. `READER_URL` defaults to `http://127.0.0.1:8080/`; `B
 
 ## Files and licensing
 
-`core.js` contains testable ordering, checkpoint and navigation state; `archive.js` bounds ZIP page extraction and validates image headers; `app.js` handles the DOM, touch zoom and lifecycle. `webp.js`, `webp-runtime.js` and `webp-worker.js` provide the local legacy-browser fallback. JSZip is pinned to 3.10.1; its upstream license is in `vendor/JSZip-LICENSE.markdown` and the distribution includes bundled dependency notices. No reader code sends file content over the network.
+`core.js` contains testable ordering, checkpoint and navigation state; `archive.js` bounds ZIP page extraction and validates image headers; `app.js` handles the DOM, touch zoom and lifecycle; `archive-cache.js` saves the latest compressed archive in IndexedDB. `webp.js`, `webp-runtime.js` and `webp-worker.js` provide the local legacy-browser fallback. JSZip is pinned to 3.10.1; its upstream license is in `vendor/JSZip-LICENSE.markdown` and the distribution includes bundled dependency notices. No reader code sends file content over the network.
