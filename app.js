@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  var Core = window.CBZ, Archive = window.CBZArchive;
+  var Core = window.CBZ, Archive = window.CBZArchive, WebP = window.CBZWebP, fallbackWebP = false;
   function byId(id) { return document.getElementById(id); }
   var library = byId('library'), reader = byId('reader'), stage = byId('stage');
   var toolbar = byId('toolbar'), input = byId('file-input'), slider = byId('page-slider');
@@ -61,9 +61,10 @@
   function dispose(resource) {
     if (!resource) return;
     resource.image.onload = null; resource.image.onerror = null;
-    resource.image.removeAttribute('src');
+    if (resource.image.tagName === 'CANVAS') { resource.image.width = 0; resource.image.height = 0; }
+    else resource.image.removeAttribute('src');
     if (resource.image.parentNode) resource.image.parentNode.removeChild(resource.image);
-    window.URL.revokeObjectURL(resource.url);
+    if (resource.url) window.URL.revokeObjectURL(resource.url);
   }
 
   function clearImage() { dispose(displayed); displayed = null; }
@@ -85,7 +86,7 @@
     if (!entry) return Promise.reject(Error('Select the CBZ file again to continue.'));
     var cancel;
     var promise = new Promise(function (resolve, reject) {
-      var resource = null, finished = false, extraction;
+      var resource = null, finished = false, extraction, conversion;
       // Timers pause in the background; resume requests queue a fresh page as needed.
       var timeout = window.setTimeout(function () { finish(Error('Loading timed out. Retry or select the file again.')); }, 30000);
       function finish(error) {
@@ -93,22 +94,39 @@
         finished = true; window.clearTimeout(timeout);
         if (error) {
           if (extraction && extraction.cancel) extraction.cancel();
+          if (conversion && conversion.cancel) conversion.cancel();
           dispose(resource); reject(error);
         }
         else { resource.image.onload = null; resource.image.onerror = null; resolve(resource); }
       }
       cancel = function () { finish(Error('Page loading cancelled.')); };
-      extraction = Archive.extract(entry);
-      extraction.then(function (blob) {
+      function decodeWebP(blob) {
+        conversion = WebP.decode(blob);
+        conversion.then(function (canvas) {
+          if (finished) { canvas.width = 0; canvas.height = 0; return; }
+          fallbackWebP = true;
+          canvas.className = 'page-image'; canvas.setAttribute('role', 'img');
+          canvas.setAttribute('aria-label', 'Page ' + (index + 1) + ': ' + entry.name);
+          resource = { image: canvas, url: null }; finish();
+        }, finish);
+      }
+      function display(blob) {
         if (finished) return;
+        if (blob.type === 'image/webp' && fallbackWebP) { decodeWebP(blob); return; }
         var image = new Image();
         resource = { image: image, url: window.URL.createObjectURL(blob) };
         image.className = 'page-image'; image.draggable = false;
         image.alt = 'Page ' + (index + 1) + ': ' + entry.name;
         image.onload = function () { finish(); };
-        image.onerror = function () { finish(Error('Safari could not display this image. Retry or select the file again.')); };
+        image.onerror = function () {
+          if (blob.type === 'image/webp') {
+            dispose(resource); resource = null; decodeWebP(blob);
+          } else finish(Error('Safari could not display this image. Retry or select the file again.'));
+        };
         image.src = resource.url;
-      }, finish).catch(finish);
+      }
+      extraction = Archive.extract(entry);
+      extraction.then(display, finish).catch(finish);
     });
     promise.cancel = function () { if (cancel) cancel(); };
     return promise;
@@ -203,6 +221,7 @@
   function toLibrary() {
     openGeneration++;
     checkpoint(); queue.cancel(); clearImage();
+    WebP.release();
     pages = []; file = null; immersive = false; exitNative(); updateFullscreen();
     reader.hidden = true; library.hidden = false; document.body.classList.remove('reading');
     document.title = 'Manga reader'; controls(false); libraryMessage(''); renderLibrary();
@@ -226,7 +245,7 @@
     var generation = ++openGeneration;
     libraryMessage((checking ? 'Checking ' : 'Opening ') + selected.name + '…');
     byId('archive-details').hidden = true;
-    if (!reader.hidden) { queue.cancel(); clearImage(); message('Opening archive…', false); }
+    if (!reader.hidden) { queue.cancel(); clearImage(); WebP.release(); message('Opening archive…', false); }
     var metadata = { name: selected.name, size: selected.size, lastModified: selected.lastModified || 0 };
     var record = store.find(metadata) || expected;
     pages = []; // Release the old compressed archive before reading its replacement.
@@ -263,7 +282,7 @@
   function suspend() {
     if (reader.hidden) return;
     checkpoint(); backgrounded = true; touch = null;
-    queue.cancel(); clearImage();
+    queue.cancel(); clearImage(); WebP.release();
   }
 
   function resume() {

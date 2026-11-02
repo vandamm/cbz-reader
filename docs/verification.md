@@ -36,3 +36,14 @@ No real iPad, Safari 12, physical screen lock, OS eviction, standalone storage-s
 ## Archive inspection update — 2026-11-02
 
 Added an on-device Check CBZ report so large books can be diagnosed without uploading them. The report counts file extensions and JPEG/PNG pages and includes bounded sample paths; it does not decompress images or alter checkpoints. All 19 Node tests passed, runtime scripts passed ES5 parsing, and the full desktop browser suite passed, including a JPEG cover plus 120 WebP entries and an unchanged localStorage checkpoint. The actual reported manga and real iOS 12 remain unverified until its report is shared.
+
+## Static WebP support — 2026-11-02
+
+The user report contained 1 JPG, 189 WebP and 10 JSON files. The regression fixture reproduces that structure with real generated WebP images and now opens as 190 pages, retaining the old saved cover filename.
+
+- All 27 Node tests pass, including static lossy/lossless/alpha WebP headers, animation/truncation/dimension rejection, raw decoder pixels, failures and 190 decode/free cycles without heap growth.
+- All runtime JavaScript parses as ES5; the self-hosted scalar libwebp 1.3.2 binary independently validates as WebAssembly MVP, with a 128 MiB memory cap. Native pixel equality and 1,008 decode/free cycles were additionally verified during codec preparation. See vendor/WebP-BUILD.md for reproducible transformation and hashes.
+- The desktop browser WebP suite passes both native mode and a forced native-WebP failure. The fallback reads all 189 WebP pages of the 190-page mixed book, keeps at most one live worker and image URL, renders lossless alpha correctly, restores page 57 after reload/reselection and simulated pagehide/pageshow, and releases the worker/canvas on Library. Native WebP creates no worker.
+- The existing 120-page JPEG/browser suite also passes. Fresh read-only review reported no actionable issues.
+
+The actual manga file and a physical iPad mini 2/iOS 12 remain untested. Forced failure in desktop Chromium verifies the fallback implementation, not old Safari hardware behavior or memory pressure.

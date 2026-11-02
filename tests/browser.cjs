@@ -111,7 +111,7 @@ const makeFixture = require('./make-fixture.cjs');
     page.once('filechooser', chooser => chooser.setFiles({ name: 'mixed-pages.cbz', mimeType: 'application/zip', buffer: mixedData }));
     await page.locator('#check-file').click();
     await page.waitForFunction(() => document.getElementById('archive-report').value.includes('WEBP: 120'));
-    assert.match(await page.locator('#archive-report').inputValue(), /JPEG\/PNG pages found: 1/);
+    assert.match(await page.locator('#archive-report').inputValue(), /JPEG\/PNG\/WebP pages found: 121/);
     assert.equal(await page.locator('#reader').isHidden(), true);
     assert.equal(await page.evaluate(() => localStorage.getItem('cbz-reader.v1')), progressBeforeCheck);
     assert.equal(await page.evaluate(() => liveURLs.size), 0);

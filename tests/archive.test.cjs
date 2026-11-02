@@ -65,7 +65,7 @@ test('archive report identifies a JPEG cover and unsupported page formats withou
   } };
   const report = await Archive.inspect(noExtraction, bytes);
   assert.match(report, /Files: 123/);
-  assert.match(report, /JPEG\/PNG pages found: 1/);
+  assert.match(report, /JPEG\/PNG\/WebP pages found: 121/);
   assert.match(report, /WEBP: 120/);
   assert.match(report, /JPG: 2/);
   assert.match(report, /cover\.jpg/);
@@ -80,7 +80,7 @@ test('archive report includes hidden paths and nested archives and bounds long f
   zip.file('x'.repeat(2000) + '.png', PNG);
   const bytes = await zip.generateAsync({ type: 'uint8array' });
   const report = await Archive.inspect(JSZip, bytes);
-  assert.match(report, /JPEG\/PNG pages found: 1/);
+  assert.match(report, /JPEG\/PNG\/WebP pages found: 1/);
   assert.match(report, /CBZ: 1/);
   assert.match(report, /No extension: 1/);
   assert.match(report, /\.hidden\/1\.jpg/);

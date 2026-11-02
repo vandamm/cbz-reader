@@ -26,7 +26,7 @@
 
   function pageEntries(entries) {
     return entries.filter(function (entry) {
-      return !entry.dir && /\.(jpe?g|png)$/i.test(entry.name) &&
+      return !entry.dir && /\.(jpe?g|png|webp)$/i.test(entry.name) &&
         !entry.name.split(/[\\/]/).some(function (part) { return part.charAt(0) === '.' || part === '__MACOSX'; });
     }).sort(function (a, b) { return naturalCompare(a.name, b.name); });
   }

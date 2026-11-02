@@ -9,6 +9,8 @@ Record device/OS, URL, Safari tab vs Home Screen, archive compressed size, typic
 - [ ] Start the server on the Mac; open the LAN URL on the iPad.
 - [ ] Open the generated 120-page JPEG CBZ from On My iPad in Files.
 - [ ] Open a 100+ page real JPEG manga, a PNG book, and an archive with nested folders.
+- [ ] Open the mixed JPEG/WebP manga: all 190 images must appear, with the 10 JSON files skipped. Check both lossy/lossless WebP and transparency; static pages only. On Safari 12 this exercises the worker/canvas fallback.
+- [ ] Repeat page 57 reload, lock, background and long-session tests with a WebP page. Verify the worker is released while hidden and the canvas restored on return.
 - [ ] Verify filenames `1`, `2`, `10`, `57`, `100`, `120` through their visual content/order. Confirm macOS metadata does not appear as pages.
 - [ ] Try invalid ZIP, password-protected CBZ, CBR, image-free ZIP and damaged image. Confirm useful errors and access to the library/reselection.
 - [ ] Right taps advance; left taps go back; swipe right advances. Reverse swipes and verify only swipe mapping changes.
@@ -56,6 +58,6 @@ Perform each case at page **57**, then check counter, page content, right/left n
 - [ ] Use Safari’s remote Web Inspector from the Mac if available. Watch image/object URL retention over page changes; resource counts should remain bounded, not grow per page. OS allocation can fluctuate and delayed reclamation is expected.
 - [ ] Verify object URLs/images are released when returning to the library or backgrounding.
 - [ ] Test an archive near the documented size limit and large scans; record failures/reloads and reduce source sizes as needed. Do not treat the limit as a memory guarantee.
-- [ ] Disconnect Wi-Fi after opening a book; all pages remain readable while the tab survives. Reconnect before reload. Offline relaunch is explicitly unsupported.
+- [ ] Disconnect Wi-Fi after opening a book; JPEG/PNG and native WebP pages remain readable while the tab survives. For the legacy WebP fallback, first load its self-hosted worker/wasm assets while online; after backgrounding the worker is recreated and browser caching is not an offline guarantee. Reconnect before reload. Offline relaunch is explicitly unsupported.
 
 Only mark the original acceptance criteria complete after the relevant physical checks pass. Record any reload, timeout, mismatch or blank screen with exact steps and file sizes.

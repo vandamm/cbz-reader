@@ -1,6 +1,6 @@
 # Manga reader for iOS 12
 
-A buildless, touch-friendly CBZ reader for an iPad mini 2 running Safari on iOS 12.5.7. Files are opened and extracted in the browser. Nothing is uploaded. JSZip 3.10.1 is included locally; there is no CDN, framework, account, or runtime dependency on an external service.
+A buildless, touch-friendly CBZ reader for an iPad mini 2 running Safari on iOS 12.5.7. Files are opened and extracted in the browser. Nothing is uploaded. JSZip 3.10.1 and a portable WebP decoder are included locally; there is no CDN, framework, account, or runtime dependency on an external service.
 
 ## Open directly on the iPad
 
@@ -8,7 +8,7 @@ Open **https://vandamm.github.io/cbz-reader/** in Safari and tap **Open CBZ** to
 
 Keep using this same URL to retain your reading history. Progress from a previous localhost/LAN URL belongs to that different browser origin and does not transfer automatically. Internet access is needed to launch/reload the site; selected manga still stays on your device.
 
-If a book appears to contain only one page, return to Library and tap **Check CBZ**, then select the same file. The report lists file formats, the JPEG/PNG page count and sample paths. Send that short text or a screenshot instead of the large CBZ. Inspection stays on the device, does not decompress images or change saved progress, and uses the same 200 MiB archive safety limit. The report uses ZIP filenames/extensions; it does not verify the contents of unsupported images.
+If a book appears to contain only one page, return to Library and tap **Check CBZ**, then select the same file. The report lists file formats, the JPEG/PNG/WebP page count and sample paths. Send that short text or a screenshot instead of the large CBZ. Inspection stays on the device, does not decompress images or change saved progress, and uses the same 200 MiB archive safety limit. The report uses ZIP filenames/extensions; it does not verify the contents of unsupported images.
 
 ## Run on macOS
 
@@ -32,7 +32,7 @@ The file picker deliberately has no `accept` filter: older Files providers may c
 
 This development server exposes this project folder to your Wi-Fi network. Serve this folder, not a folder containing private files. Your selected manga can live elsewhere in Files; selecting it does not copy it to the server. Stop the server with Control-C.
 
-For deployment, copy `index.html`, `styles.css`, `core.js`, `archive.js`, `app.js`, `apple-touch-icon.png`, and the `vendor` directory to any static host. No build step is required.
+For deployment, copy `index.html`, `styles.css`, `core.js`, `archive.js`, `app.js`, `webp.js`, `webp-runtime.js`, `webp-worker.js`, `apple-touch-icon.png`, and the `vendor` directory to any static host. No build step is required.
 
 ## Reading
 
@@ -76,11 +76,19 @@ Only the requested page is decompressed. There is no prefetch or decoded-page ca
 Safety limits for this old 1 GB device:
 
 - **Archive:** at most 200 MiB compressed.
-- **Page:** at most 24 MiB decompressed JPEG/PNG data, 16 megapixels, and 16,384 pixels on either axis.
+- **Page:** at most 24 MiB decompressed JPEG/PNG/WebP data, 16 megapixels, and 16,384 pixels on either axis.
 
 These limits reduce risk; they cannot guarantee a particular archive fits Safari’s available memory. JSZip retains the **entire compressed archive** in memory, with temporary buffers during opening and extraction; this is not a disk-streaming ZIP reader. Split large volumes into smaller CBZs and downsize oversized scans. The browser controls when released image memory is reclaimed. See [JSZip’s documented limitations](https://stuk.github.io/jszip/documentation/limitations.html).
 
-Folders and hidden/macOS metadata are ignored. Paths and filenames are sorted numerically without locale-dependent sorting, including `1.jpg`, `2.jpg`, `10.jpg`. JPEG and PNG signatures/dimensions are validated, with decoding errors reported. Encrypted/multi-volume ZIPs, CBR/RAR, 7z, GIF, WebP and HEIC are unsupported. Legacy non-UTF-8 ZIP filenames may display incorrectly. Full-archive CRC checking is disabled to avoid eagerly extracting every page; corrupt pages are reported when extraction or decoding fails, but this is not an archive integrity verifier.
+Folders and hidden/macOS metadata are ignored. Paths and filenames are sorted numerically without locale-dependent sorting, including `1.jpg`, `2.jpg`, `10.jpg`. JPEG, PNG and WebP signatures/dimensions are validated, with decoding errors reported. Encrypted/multi-volume ZIPs, CBR/RAR, 7z, GIF, animated WebP and HEIC are unsupported. Legacy non-UTF-8 ZIP filenames may display incorrectly. Full-archive CRC checking is disabled to avoid eagerly extracting every page; corrupt pages are reported when extraction or decoding fails, but this is not an archive integrity verifier.
+
+## WebP on old Safari
+
+JPEG, PNG and static WebP pages are counted together in natural filename order. JSON sidecars are ignored. This fixes books with a JPEG cover and WebP content pages that previously appeared as one-page books. Existing checkpoints and the same website origin are retained.
+
+Native WebP decoding is used when the browser can display the page. Otherwise a classic Web Worker loads a bundled scalar libwebp 1.3.2 decoder, validates dimensions, decodes one page, and transfers its pixels to a single canvas. Lossy, lossless and alpha WebP are supported. The wasm uses baseline WebAssembly MVP instructions, with no SIMD, threads, BigInt or bulk-memory requirement. The fallback heap has a hard 128 MiB maximum and each C input/output buffer is explicitly freed. Workers are terminated on backgrounding, closing/replacing the archive or cancellation; canvases are cleared when replaced.
+
+The decoder and worker files come from this same site, with no CDN or uploads. Their first use needs access to the hosted files. WebAssembly is needed only when native WebP is unavailable. Full hardware/performance validation on the iPad remains pending. Build provenance, pinned input hashes, ABI and licenses are in [vendor/WebP-BUILD.md](vendor/WebP-BUILD.md).
 
 ## Offline and browser compatibility
 
@@ -108,10 +116,12 @@ npm install --prefix /tmp/cbz-reader-checks playwright
 PLAYWRIGHT_MODULE=/tmp/cbz-reader-checks/node_modules/playwright node tests/browser.cjs
 ```
 
+Also run `node tests/browser-webp.cjs` with the same Playwright environment to check a 190-page JPEG/WebP book in both native and forced fallback modes, including decoded pixels, checkpoint restoration, lifecycle recovery and worker cleanup.
+
 Run the HTTP server first. `READER_URL` defaults to `http://127.0.0.1:8080/`; `BROWSER_EXECUTABLE` can select an existing Chromium executable. The script checks 120 JPEG page changes, navigation, reload/reselection, lifecycle event recovery, CSS fullscreen fallback, rotation, URL release, rapid jumps, revised archives and storage refusal. It creates screenshots in `tests/`. Desktop lifecycle events and viewport changes are simulations, not proof of iOS screen-lock behavior.
 
 **Verification status:** automated checks and desktop results are recorded in [verification.md](docs/verification.md). Real iOS 12 acceptance remains pending until the physical-device checklist is completed.
 
 ## Files and licensing
 
-`core.js` contains testable ordering, checkpoint and navigation state; `archive.js` bounds ZIP page extraction and validates image headers; `app.js` handles the DOM, touch, fullscreen and lifecycle. JSZip is pinned to 3.10.1; its upstream license is in `vendor/JSZip-LICENSE.markdown` and the distribution includes bundled dependency notices. No reader code sends file content over the network.
+`core.js` contains testable ordering, checkpoint and navigation state; `archive.js` bounds ZIP page extraction and validates image headers; `app.js` handles the DOM, touch, fullscreen and lifecycle. `webp.js`, `webp-runtime.js` and `webp-worker.js` provide the local legacy-browser fallback. JSZip is pinned to 3.10.1; its upstream license is in `vendor/JSZip-LICENSE.markdown` and the distribution includes bundled dependency notices. No reader code sends file content over the network.
