@@ -47,3 +47,9 @@ The user report contained 1 JPG, 189 WebP and 10 JSON files. The regression fixt
 - The existing 120-page JPEG/browser suite also passes. Fresh read-only review reported no actionable issues.
 
 The actual manga file and a physical iPad mini 2/iOS 12 remain untested. Forced failure in desktop Chromium verifies the fallback implementation, not old Safari hardware behavior or memory pressure.
+
+## Fullscreen exit discoverability — 2026-11-02
+
+Added a persistent 48px-high top-right Exit fullscreen button when native fullscreen or CSS immersive mode is active. The toolbar can remain hidden. The shared exit path preserves the current page, recognizes legacy WebKit fullscreen element/boolean properties, handles native rejection without hiding the exit, and responds to Escape with a control focused.
+
+A browser regression first failed because no visible exit existed. The fixed suite passes CSS fallback, actual Chromium fullscreen, simulated legacy WebKit element and flag states, delayed void-returning exit, a rejected exit followed by retry, and touch/Escape at page 57 without progress loss. Existing 27 Node tests and the 120-page browser regression suite pass; app.js still parses as ES5. Portrait screenshot visually checked. Real iPad/Safari 12 verification remains pending.

@@ -171,11 +171,15 @@
     byId('toggle-controls').setAttribute('aria-label', show ? 'Hide reader controls' : 'Show reader controls');
   }
 
-  function nativeElement() { return document.fullscreenElement || document.webkitFullscreenElement; }
+  function nativeElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement ||
+      document.webkitCurrentFullScreenElement || (document.webkitIsFullScreen ? reader : null);
+  }
 
   function updateFullscreen() {
     byId('fullscreen').textContent = immersive ? 'Exit fullscreen' : 'Fullscreen';
     byId('fullscreen').setAttribute('aria-pressed', String(immersive));
+    byId('exit-fullscreen').hidden = !immersive;
   }
 
   function fallbackNote() {
@@ -187,15 +191,26 @@
 
   function exitNative() {
     var exit = document.exitFullscreen || document.webkitExitFullscreen || document.webkitCancelFullScreen;
-    if (nativeElement() && exit) {
-      try { var result = exit.call(document); if (result && result.catch) result.catch(function () {}); }
-      catch (error) { /* CSS mode and progress still work when native exit is refused. */ }
-    }
+    if (!nativeElement()) return Promise.resolve();
+    if (!exit) return Promise.reject(Error('Fullscreen exit is unavailable.'));
+    try { return Promise.resolve(exit.call(document)); }
+    catch (error) { return Promise.reject(error); }
+  }
+
+  function leaveFullscreen() {
+    controls(true);
+    exitNative().then(function () {
+      immersive = !!nativeElement(); updateFullscreen();
+    }, function () {
+      immersive = !!nativeElement(); updateFullscreen();
+      byId('fullscreen-note').textContent = 'Safari could not exit fullscreen. Tap Exit fullscreen again.';
+      byId('fullscreen-note').hidden = false;
+    });
   }
 
   function toggleFullscreen() {
     if (immersive) {
-      immersive = false; exitNative(); updateFullscreen(); controls(true); return;
+      leaveFullscreen(); return;
     }
     immersive = true; controls(false); updateFullscreen(); fallbackNote();
     var request = null;
@@ -222,7 +237,7 @@
     openGeneration++;
     checkpoint(); queue.cancel(); clearImage();
     WebP.release();
-    pages = []; file = null; immersive = false; exitNative(); updateFullscreen();
+    pages = []; file = null; immersive = false; exitNative().catch(function () {}); updateFullscreen();
     reader.hidden = true; library.hidden = false; document.body.classList.remove('reading');
     document.title = 'Manga reader'; controls(false); libraryMessage(''); renderLibrary();
     byId('open-file').focus();
@@ -338,16 +353,17 @@
   byId('back-library').addEventListener('click', toLibrary);
   byId('error-library').addEventListener('click', toLibrary);
   byId('fullscreen').addEventListener('click', toggleFullscreen);
+  byId('exit-fullscreen').addEventListener('click', leaveFullscreen);
   slider.addEventListener('input', function () { goTo(Number(slider.value) - 1); });
   byId('swipe-direction').value = store.reverseSwipe() ? 'left' : 'right';
   byId('swipe-direction').addEventListener('change', function (event) { store.setReverseSwipe(event.target.value === 'left'); });
   document.addEventListener('keydown', function (event) {
-    if (reader.hidden || /^(INPUT|SELECT|BUTTON)$/.test(event.target.tagName)) return;
+    if (reader.hidden) return;
+    if (event.key === 'Escape') { event.preventDefault(); leaveFullscreen(); return; }
+    if (/^(INPUT|SELECT|BUTTON)$/.test(event.target.tagName)) return;
     if (event.key === 'ArrowRight') { event.preventDefault(); action('next'); }
     else if (event.key === 'ArrowLeft') { event.preventDefault(); action('previous'); }
-    else if (event.key === 'Escape') {
-      immersive = false; exitNative(); updateFullscreen(); controls(true);
-    } else if (event.key === ' ') { event.preventDefault(); action('controls'); }
+    else if (event.key === ' ') { event.preventDefault(); action('controls'); }
   });
   document.addEventListener('visibilitychange', function () { if (document.hidden) suspend(); else resume(); });
   window.addEventListener('pagehide', suspend);

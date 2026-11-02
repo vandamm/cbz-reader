@@ -46,7 +46,7 @@ Perform each case at page **57**, then check counter, page content, right/left n
 ## Screen area
 
 - [ ] Tap center repeatedly; controls hide/reveal without moving the page.
-- [ ] Toggle Fullscreen, reveal center controls, exit: current page unchanged.
+- [ ] Toggle Fullscreen; the top-right Exit fullscreen button remains visible while the toolbar is hidden. Tap it in portrait/landscape: current page unchanged. Repeat after revealing the toolbar, and try Escape with a button focused if a keyboard is available.
 - [ ] If native fullscreen is exposed and enabled, verify actual browser behavior and exit affordance. If absent/refused, verify the immersive-mode explanation is accurate.
 - [ ] In a Safari tab, confirm immersive mode does not claim to remove Safari bars.
 - [ ] Share > Add to Home Screen; launch the icon and verify standalone mode and space available. Reselect the book as needed; test progress within that mode.

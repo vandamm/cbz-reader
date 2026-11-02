@@ -65,9 +65,9 @@ If iOS terminates the process, the last successful checkpoint is used after laun
 
 ## Fullscreen and Home Screen mode
 
-The accessible Fullscreen button detects both standard and WebKit-prefixed element fullscreen methods **and their enabled flags**. It attempts native fullscreen only when supported; rejection falls back to an immersive reader. Tap the center to reveal controls and exit without moving the page.
+The accessible Fullscreen button detects both standard and WebKit-prefixed element fullscreen methods **and their enabled flags**. It attempts native fullscreen only when supported; rejection falls back to an immersive reader. A dedicated **Exit fullscreen** button stays visible at the top right while fullscreen/immersive mode is active; tap it to exit without moving the page. Tapping the center still shows/hides the toolbar. Escape also exits when a button has focus. Legacy WebKit fullscreen element/flag properties are recognized.
 
-CSS immersive mode hides application controls; **it cannot remove Safari’s browser chrome**. When falling back, the revealed toolbar explains this. For more space on iOS 12, use Safari > Share > **Add to Home Screen**, then launch the icon. Apple web-app meta tags are included and `navigator.standalone` is detected. Native fullscreen availability varies by browser, device and context; Home Screen launch is a separate mode. See [Apple’s Safari Web Content Guide](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html).
+CSS immersive mode hides the toolbar while retaining the exit button; **it cannot remove Safari’s browser chrome**. When falling back, the revealed toolbar explains this. For more space on iOS 12, use Safari > Share > **Add to Home Screen**, then launch the icon. Apple web-app meta tags are included and `navigator.standalone` is detected. Native fullscreen availability varies by browser, device and context; Home Screen launch is a separate mode. See [Apple’s Safari Web Content Guide](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html).
 
 ## Memory and archive limits
 

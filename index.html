@@ -10,12 +10,12 @@
   <meta name="description" content="Read local CBZ manga on your iPad. Your files stay on your device.">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <title>Manga reader</title>
-  <link rel="stylesheet" href="styles.css?v=3">
+  <link rel="stylesheet" href="styles.css?v=4">
   <script defer src="vendor/jszip.min.js"></script>
   <script defer src="core.js?v=3"></script>
   <script defer src="archive.js?v=3"></script>
   <script defer src="webp.js?v=3"></script>
-  <script defer src="app.js?v=3"></script>
+  <script defer src="app.js?v=4"></script>
 </head>
 <body>
   <p id="storage-warning" class="storage-warning" role="alert" hidden>Progress cannot be saved. Allow website storage and use a regular Safari tab. Keep a note of your page before closing.</p>
@@ -52,6 +52,7 @@
     <noscript><p>JavaScript must be enabled to open CBZ archives.</p></noscript>
   </main>
   <section id="reader" class="reader" aria-label="Manga reader" hidden>
+    <button type="button" id="exit-fullscreen" class="fullscreen-exit" hidden><span aria-hidden="true">✕</span> Exit fullscreen</button>
     <div id="stage" class="stage" aria-label="Manga page">
       <button type="button" id="previous" class="tap-zone previous" aria-label="Previous page"></button>
       <button type="button" id="toggle-controls" class="tap-zone center" aria-label="Show reader controls" aria-controls="toolbar" aria-expanded="false"></button>
