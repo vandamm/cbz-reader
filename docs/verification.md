@@ -68,3 +68,10 @@ The existing page image or WebP canvas now supports 1–4× pinch zoom, bounded 
 - The zoomed-page screenshot was visually inspected. Zoom transforms the existing resource; it does not allocate another decoded page/canvas.
 
 Real iPad mini 2 / Safari 12 pinch, double-tap timing, lock/resume and GPU memory behavior remain untested; the manual checklist now covers them.
+
+
+## Page indicator with controls hidden — 2026-11-02
+
+A small current/total output now stays at the bottom of the reader when the toolbar is hidden. It uses the same position update as the toolbar counter, respects the safe-area inset, and lets touches pass through. The original toolbar counter is used while controls are visible. The output is outside the transformed image/canvas, so zoom does not enlarge it.
+
+The browser regression first failed because the hidden-toolbar indicator was absent. The updated 120-page suite passes, including page 57 → 58 → 57 with controls hidden, the indicator staying inside the viewport, and an actual touch through its center revealing the toolbar and hiding the duplicate counter. The portrait screenshot was visually inspected. All 27 Node tests pass and app.js parses as ES5. Physical iPad/Safari 12 layout and safe-area behavior remain pending.

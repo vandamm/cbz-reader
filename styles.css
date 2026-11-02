@@ -49,6 +49,7 @@ body.reading { overflow: hidden; }
 .previous { left: 0; width: 30%; }
 .center { left: 30%; width: 40%; }
 .next { right: 0; width: 30%; }
+.reading-position { position: absolute; bottom: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 3; padding: 4px 9px; border-radius: 4px; background: rgba(0,0,0,.7); color: #eee; font-size: 12px; font-variant-numeric: tabular-nums; pointer-events: none; }
 .page-message { position: absolute; top: 50%; left: 50%; width: 90%; max-width: 520px; transform: translate(-50%, -50%); text-align: center; line-height: 1.6; padding: 18px; background: rgba(0,0,0,.9); pointer-events: none; z-index: 4; }
 #recovery-actions { pointer-events: auto; }
 #recovery-actions button { margin: 5px 3px; }

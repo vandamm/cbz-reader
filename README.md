@@ -39,6 +39,7 @@ For deployment, copy `index.html`, `styles.css`, `core.js`, `archive.js`, `app.j
 - **Tap right:** next page. **Tap left:** previous page.
 - **Swipe right:** next page by default. Change “Next page” in the toolbar to reverse swipes. Tap directions stay unchanged.
 - **Tap center:** reveal or hide the toolbar.
+- With the toolbar hidden, a small current/total page indicator remains at the bottom. It lets touches pass through and stays fixed while the image is enlarged.
 - **Pinch:** enlarge/shrink the page between its fitted size and 4×. **Double tap:** switch between 2× at the tapped point and the original fitted size.
 - **Drag an enlarged page:** move around it. Side taps and swipes do not turn pages while enlarged; double tap to return to fit before continuing. Center taps still show controls, and the slider can change pages at any scale.
 - Use the page slider to jump. Its page position is saved immediately on every change.

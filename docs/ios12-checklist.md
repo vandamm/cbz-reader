@@ -48,6 +48,7 @@ Perform each case at page **57**, then check counter, page content, right/left n
 ## Screen area
 
 - [ ] Tap center repeatedly; controls hide/reveal without moving the page.
+- [ ] With controls hidden, the small current/total page number remains at the bottom and updates after navigation. It stays fixed during zoom/rotation and does not block center taps; opening controls hides the duplicate indicator.
 - [ ] Share > Add to Home Screen; launch the icon and verify standalone mode and space available. Reselect the book as needed; test progress within that mode.
 - [ ] Portrait/landscape rotations while controls are hidden/visible and after lock show the whole page, no distortion or clipping. Test a wide spread, a portrait scan and a very small image.
 
