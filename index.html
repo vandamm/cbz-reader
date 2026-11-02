@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Manga reader">
+  <meta name="theme-color" content="#000000">
+  <meta name="description" content="Read local CBZ manga on your iPad. Your files stay on your device.">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <title>Manga reader</title>
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="vendor/jszip.min.js"></script>
+  <script defer src="core.js"></script>
+  <script defer src="archive.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <p id="storage-warning" class="storage-warning" role="alert" hidden>Progress cannot be saved. Allow website storage and use a regular Safari tab. Keep a note of your page before closing.</p>
+  <main id="library" class="library">
+    <header class="library-header">
+      <svg class="book-mark" viewBox="0 0 64 64" width="64" height="64" aria-hidden="true"><path d="M9 10h18l5 5 5-5h18v42H37l-5 4-5-4H9zM32 15v41M16 20h9M16 27h9M39 35h9M39 42h9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      <h1>Manga reader</h1>
+      <p>Your books. Your place. Just reading.</p>
+    </header>
+    <button type="button" id="open-file" class="primary">Open CBZ <span aria-hidden="true">＋</span></button>
+    <input type="file" id="file-input" class="file-input" tabindex="-1" aria-label="Choose a CBZ archive">
+    <p class="file-note">Choose a .cbz file from Files. It stays on this device.</p>
+    <p id="library-status" class="library-status" role="status" hidden></p>
+    <section class="recents" aria-labelledby="recent-heading">
+      <h2 id="recent-heading">Pick up where you left off</h2>
+      <p id="empty-library" class="muted">Books you open will appear here with your saved page.</p>
+      <ul id="recent-list"></ul>
+    </section>
+    <section class="reading-guide" aria-label="Reading gestures">
+      <div><span aria-hidden="true">‹</span><strong>Tap left</strong><small>Previous page</small></div>
+      <div><span aria-hidden="true">☰</span><strong>Tap center</strong><small>Reader controls</small></div>
+      <div><span aria-hidden="true">›</span><strong>Tap right</strong><small>Next page</small></div>
+    </section>
+    <p class="muted swipe-note">Swipe right for the next page. You can reverse swipes in the reader.</p>
+    <aside id="install-hint" class="install-hint"><strong>More room for your pages</strong><p>In Safari, tap Share, then Add to Home Screen. Launch that icon for reading without Safari’s toolbars. Your first launch may need the file selected again.</p></aside>
+    <footer>JPEG &amp; PNG pages · No uploads · No account</footer>
+    <noscript><p>JavaScript must be enabled to open CBZ archives.</p></noscript>
+  </main>
+  <section id="reader" class="reader" aria-label="Manga reader" hidden>
+    <div id="stage" class="stage" aria-label="Manga page">
+      <button type="button" id="previous" class="tap-zone previous" aria-label="Previous page"></button>
+      <button type="button" id="toggle-controls" class="tap-zone center" aria-label="Show reader controls" aria-controls="toolbar" aria-expanded="false"></button>
+      <button type="button" id="next" class="tap-zone next" aria-label="Next page"></button>
+    </div>
+    <div id="page-message" class="page-message" role="status" hidden>
+      <p id="page-message-text"></p>
+      <div id="recovery-actions" hidden><button type="button" id="retry-page">Retry page</button><button type="button" id="reselect-file">Select file again</button><button type="button" id="error-library">Library</button></div>
+    </div>
+    <div id="toolbar" class="toolbar" role="region" aria-label="Reader controls" hidden>
+      <div class="toolbar-top"><button type="button" id="back-library">‹ Library</button><h2 id="book-title"></h2><button type="button" id="fullscreen" aria-pressed="false">Fullscreen</button></div>
+      <div class="page-controls"><output id="page-count" for="page-slider" aria-live="polite"></output><input type="range" id="page-slider" min="1" max="1" value="1" step="1" aria-label="Page"></div>
+      <div class="toolbar-bottom"><label for="swipe-direction">Next page:</label><select id="swipe-direction"><option value="right">Swipe right</option><option value="left">Swipe left</option></select><span id="save-state">Progress saved</span></div>
+      <p id="fullscreen-note" class="fullscreen-note" hidden></p>
+    </div>
+  </section>
+</body>
+</html>
