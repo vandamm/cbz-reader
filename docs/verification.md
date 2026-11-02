@@ -87,3 +87,16 @@ The previous release saved only page metadata, so a terminated Home Screen/Safar
 - The existing 120-page JPEG/reselection suite passes with archive storage unavailable, covering the fallback path. Native and forced fallback 190-page WebP suites both pass automatic reopening at page 57 and subsequent navigation/cleanup. The touch-zoom suite also passes.
 
 Actual iPad mini 2 / iOS 12.5.7 long app switching, OS process termination, available disk quota, standalone storage and Blob persistence remain untested. A completed local copy and retained website storage are required for automatic reopening. The site still requires network access for a fresh launch/reload; there is no offline service worker.
+
+
+## Persistent multi-book library — 2026-11-02
+
+The start-screen history now keeps a compressed local copy per file identity, so every saved row can Continue at its own checkpoint. Rows show the title and current/total page and are ordered by last reading time. Remove file deletes only that row's Blob and leaves its checkpoint. Older entries without a local copy remain visible with Select file. Storage-full failures do not evict other books.
+
+The IndexedDB database upgrades from version 1 to version 2 in one upgrade transaction, moving the old current record to its identity key. Listing uses getAllKeys and never reads all archive Blobs. Unique name/size metadata drift replaces the old identity copy atomically. Startup key results merge with saves/removals already made, while a manual open cancels automatic startup navigation.
+
+- The new browser regression first reproduced the earlier book becoming unavailable after opening a second. It now passes two saved books at pages 58 and 9, row-based resume, a complete browser process/profile restart, migration of a real version-1 database, zero Blob gets during library listing, per-book removal with retained history, and metadata drift without duplicate copies.
+- A delayed-startup regression first reproduced missing Continue rows after a manual open. The corrected merge passes that race and preserves the manually selected book.
+- All 28 Node tests pass; changed runtime scripts parse as ES5. The existing 120-page/reselection suite, automatic-resume/error suite, and both native and forced fallback WebP suites pass. The two-book portrait library screenshot was visually inspected.
+
+Real iPad/iOS 12 library size, disk quota, migration under OS termination and extended reading remain pending. Existing metadata-only history cannot recreate original files: each such book needs one file reselection before it can Continue from local storage.

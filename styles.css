@@ -23,8 +23,9 @@ h2 { font-size: 17px; font-weight: 500; }
 .recents h2 { margin: 0 0 15px; }
 .muted { color: #999; font-size: 14px; line-height: 1.6; }
 #recent-list { list-style: none; padding: 0; margin: 0; }
-#recent-list li { border-top: 1px solid #303030; }
-.recent-book { width: 100%; text-align: left; border: 0; border-radius: 0; background: none; padding: 18px 0; display: flex; align-items: center; justify-content: space-between; }
+#recent-list li { display: flex; align-items: center; border-top: 1px solid #303030; }
+.recent-book { flex: 1; min-width: 0; text-align: left; border: 0; border-radius: 0; background: none; padding: 18px 0; display: flex; align-items: center; justify-content: space-between; }
+.remove-book { flex-shrink: 0; margin-left: 14px; padding: 8px 10px; font-size: 12px; }
 .recent-info { min-width: 0; padding-right: 16px; }
 .recent-name { display: block; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .recent-detail { display: block; font-size: 13px; color: #aaa; margin-top: 7px; }

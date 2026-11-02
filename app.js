@@ -8,7 +8,7 @@
   var expectedBook = null, inspecting = false, resumeTimer = null, touch = null, pinch = null;
   var zoom = { scale: 1, x: 0, y: 0 }, pendingTap = null, tapTimer = null;
   var backgrounded = document.hidden, lastTouch = 0, storageFailed = false;
-  var cache, cachedId = null;
+  var cache, cachedIds = Object.create(null);
   try { cache = window.CBZArchiveCache.create(window.indexedDB); }
   catch (error) { cache = window.CBZArchiveCache.create(null); }
   var storage;
@@ -39,15 +39,21 @@
       action.className = 'recent-action';
       name.textContent = book.name.replace(/\.cbz$/i, '');
       detail.textContent = 'Page ' + (book.page + 1) + ' of ' + book.pageCount;
-      action.textContent = cachedId === book.id ? 'Continue' : 'Select file';
+      action.textContent = cachedIds[book.id] ? 'Continue' : 'Select file';
       button.setAttribute('aria-label', action.textContent + ' ' + book.name + ' at page ' + (book.page + 1));
       info.appendChild(name); info.appendChild(detail); button.appendChild(info); button.appendChild(action);
-      button.addEventListener('click', function () { if (cachedId === book.id) restoreBook(book); else pickFile(book); });
-      li.appendChild(button); list.appendChild(li);
+      button.addEventListener('click', function () { if (cachedIds[book.id]) restoreBook(book); else pickFile(book); });
+      li.appendChild(button);
+      if (cachedIds[book.id]) {
+        var remove = document.createElement('button');
+        remove.type = 'button'; remove.className = 'remove-book'; remove.textContent = 'Remove file'; remove.disabled = opening;
+        remove.setAttribute('aria-label', 'Remove local copy of ' + book.name + ', keep progress');
+        remove.addEventListener('click', function () { removeFile(book); });
+        li.appendChild(remove);
+      }
+      list.appendChild(li);
     });
     byId('install-hint').hidden = navigator.standalone === true;
-    byId('forget-file').hidden = !cachedId;
-    byId('forget-file').disabled = opening;
   }
 
   function pickFile(book, check) {
@@ -202,13 +208,15 @@
       blob.size <= Archive.MAX_ARCHIVE_BYTES && metadata.size === blob.size;
   }
 
-  function saveFile(selected, metadata) {
+  function saveFile(selected, metadata, previous) {
     var id = Core.fileId(metadata);
+    var previousId = previous && previous.name === metadata.name && previous.size === metadata.size ? previous.id : null;
     byId('resume-status').textContent = 'Saving a local copy for automatic resume…';
     Promise.resolve().then(function () {
-      return cache.save(metadata, selected.slice(0, selected.size, 'application/zip'));
+      return cache.save(metadata, selected.slice(0, selected.size, 'application/zip'), previousId);
     }).then(function () {
-      cachedId = id; renderLibrary();
+      if (previousId) cachedIds[previousId] = false;
+      cachedIds[id] = true; renderLibrary();
       if (file && Core.fileId(file) === id) byId('resume-status').textContent = storageFailed ?
         'Local copy saved, but progress storage is unavailable.' : 'Local copy ready. Reading resumes here after a restart.';
     }, function () {
@@ -221,12 +229,20 @@
     if (opening) return;
     var generation = ++openGeneration;
     libraryMessage('Restoring ' + book.name + ' at page ' + (book.page + 1) + '…');
-    cache.read().then(function (record) {
+    cache.read(book.id).then(function (record) {
       if (generation !== openGeneration) return;
       if (savedFile(record) && Core.fileId(record.metadata) === book.id) {
         openBook(record.blob, record.metadata, book, true, false);
-      } else { cachedId = null; renderLibrary(); reselection(book, 'The local copy is unavailable.'); }
+      } else { cachedIds[book.id] = false; renderLibrary(); reselection(book, 'The local copy is unavailable.'); }
     }, function () { if (generation === openGeneration) reselection(book, 'Local file storage is unavailable.'); });
+  }
+
+  function removeFile(book) {
+    openGeneration++; store.setReading(false);
+    cache.remove(book.id).then(function () {
+      cachedIds[book.id] = false; renderLibrary();
+      libraryMessage('Saved file removed. Your reading progress is kept.');
+    }, function () { libraryMessage('The saved file could not be removed. Try again.'); });
   }
 
   function openBook(selected, metadata, expected, fromCache, checking) {
@@ -255,11 +271,11 @@
       document.body.classList.add('reading');
       controls(!fromCache); resize(); requestPage();
       if (fromCache) byId('resume-status').textContent = 'Reading restored from the local copy.';
-      else saveFile(selected, metadata);
+      else saveFile(selected, metadata, record);
     }, function (error) {
       if (generation !== openGeneration) return;
       if (reader.hidden) {
-        if (fromCache) { cachedId = null; renderLibrary(); reselection(record, 'The saved archive could not be opened.'); }
+        if (fromCache) { cachedIds[expected.id] = false; renderLibrary(); reselection(record, 'The saved archive could not be opened.'); }
         else libraryMessage(error.message);
       } else pageError(error);
     }).then(function () {
@@ -433,13 +449,6 @@
   byId('retry-page').addEventListener('click', function () { if (pages.length) requestPage(); else pickFile(store.last()); });
   byId('back-library').addEventListener('click', toLibrary);
   byId('error-library').addEventListener('click', toLibrary);
-  byId('forget-file').addEventListener('click', function () {
-    openGeneration++;
-    cache.clear().then(function () {
-      cachedId = null; store.setReading(false); renderLibrary();
-      libraryMessage('Saved file removed. Your reading progress is kept.');
-    }, function () { libraryMessage('The saved file could not be removed. Try again.'); });
-  });
   slider.addEventListener('input', function () { goTo(Number(slider.value) - 1); });
   byId('swipe-direction').value = store.reverseSwipe() ? 'left' : 'right';
   byId('swipe-direction').addEventListener('change', function (event) { store.setReverseSwipe(event.target.value === 'left'); });
@@ -464,15 +473,16 @@
     if (store.reading()) libraryMessage('Restoring ' + last.name + ' at page ' + (last.page + 1) + '…');
     else reselection(last);
   }
-  cache.read().then(function (record) {
-    if (startupGeneration !== openGeneration) return;
-    cachedId = savedFile(record) ? Core.fileId(record.metadata) : null;
+  cache.list().then(function (ids) {
+    // Keep file saves/removals made while the initial key listing was pending.
+    ids.forEach(function (id) { if (!(id in cachedIds)) cachedIds[id] = true; });
     renderLibrary();
+    if (startupGeneration !== openGeneration) return;
     if (!last) return;
     if (store.reading()) {
-      if (cachedId === last.id) openBook(record.blob, record.metadata, last, true, false);
+      if (cachedIds[last.id]) restoreBook(last);
       else reselection(last, 'The local copy is unavailable.');
-    } else if (cachedId === last.id) libraryMessage('Tap Continue to read ' + last.name + ' at page ' + (last.page + 1) + '.');
+    } else if (cachedIds[last.id]) libraryMessage('Tap Continue to read ' + last.name + ' at page ' + (last.page + 1) + '.');
   }, function () {
     if (startupGeneration === openGeneration && last) reselection(last, 'Local file storage is unavailable.');
   });

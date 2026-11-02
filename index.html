@@ -10,13 +10,13 @@
   <meta name="description" content="Read local CBZ manga on your iPad. Your files stay on your device.">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <title>Manga reader</title>
-  <link rel="stylesheet" href="styles.css?v=6">
+  <link rel="stylesheet" href="styles.css?v=8">
   <script defer src="vendor/jszip.min.js"></script>
   <script defer src="core.js?v=7"></script>
   <script defer src="archive.js?v=3"></script>
   <script defer src="webp.js?v=3"></script>
-  <script defer src="archive-cache.js?v=7"></script>
-  <script defer src="app.js?v=7"></script>
+  <script defer src="archive-cache.js?v=8"></script>
+  <script defer src="app.js?v=8"></script>
 </head>
 <body>
   <p id="storage-warning" class="storage-warning" role="alert" hidden>Progress cannot be saved. Allow website storage and use a regular Safari tab. Keep a note of your page before closing.</p>
@@ -28,7 +28,7 @@
     </header>
     <button type="button" id="open-file" class="primary">Open CBZ <span aria-hidden="true">＋</span></button>
     <input type="file" id="file-input" class="file-input" tabindex="-1" aria-label="Choose a CBZ archive">
-    <p class="file-note">Choose a .cbz file from Files. The last opened book is kept on this device so reading can resume after a restart. Nothing is uploaded.</p>
+    <p class="file-note">Choose a .cbz file from Files. Opened books are kept on this device so you can continue from your library. Nothing is uploaded.</p>
     <button type="button" id="check-file">Check CBZ</button>
     <p class="file-note">Missing pages? Check the archive without uploading it.</p>
     <p id="library-status" class="library-status" role="status" hidden></p>
@@ -38,11 +38,10 @@
       <textarea id="archive-report" readonly rows="12" aria-label="Archive report"></textarea>
     </section>
     <section class="recents" aria-labelledby="recent-heading">
-      <h2 id="recent-heading">Pick up where you left off</h2>
+      <h2 id="recent-heading">Your books</h2>
       <p id="empty-library" class="muted">Books you open will appear here with your saved page.</p>
       <ul id="recent-list"></ul>
-      <button type="button" id="forget-file" hidden>Remove saved file</button>
-      <p class="file-note">Only the latest book is kept. Removing its local copy keeps your page history.</p>
+      <p class="file-note">Tap a book to continue at its saved page. Remove file frees its local copy and keeps your progress. Select file means the book needs to be chosen once from Files.</p>
     </section>
     <section class="reading-guide" aria-label="Reading gestures">
       <div><span aria-hidden="true">‹</span><strong>Tap left</strong><small>Previous page</small></div>

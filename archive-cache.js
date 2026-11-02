@@ -1,7 +1,7 @@
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.CBZArchiveCache = factory();
-}(this, function () {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./core.js'));
+  else root.CBZArchiveCache = factory(root.CBZ);
+}(this, function (Core) {
   'use strict';
   function create(indexedDB) {
     var pending = Promise.resolve();
@@ -18,8 +18,18 @@
           if (error) reject(error); else resolve(result);
         }
         try {
-          var request = indexedDB.open('cbz-reader-files', 1);
-          request.onupgradeneeded = function () { request.result.createObjectStore('files'); };
+          var request = indexedDB.open('cbz-reader-files', 2);
+          request.onupgradeneeded = function (event) {
+            var files = event.oldVersion === 0 ? request.result.createObjectStore('files') : request.transaction.objectStore('files');
+            if (event.oldVersion === 1) {
+              var legacy = files.get('current');
+              legacy.onsuccess = function () {
+                var record = legacy.result;
+                if (record && record.metadata) files.put(record, Core.fileId(record.metadata));
+                files.delete('current');
+              };
+            }
+          };
           request.onerror = function () { finish(request.error || Error('Local file storage failed.')); };
           request.onblocked = function () { finish(Error('Local file storage is blocked by another window.')); };
           request.onsuccess = function () {
@@ -37,16 +47,24 @@
         } catch (error) { finish(error); }
       });
     }
-    // Serialize replacements/removal so an older save cannot overwrite a newer book.
+    // Serialize updates so removal cannot race a pending save of the same book.
     function write(operation) {
       var result = pending.then(function () { return run('readwrite', operation); });
       pending = result.catch(function () {});
       return result;
     }
     return {
-      read: function () { return pending.then(function () { return run('readonly', function (files) { return files.get('current'); }); }); },
-      save: function (metadata, blob) { return write(function (files) { return files.put({ metadata: metadata, blob: blob }, 'current'); }); },
-      clear: function () { return write(function (files) { return files.delete('current'); }); }
+      list: function () { return pending.then(function () { return run('readonly', function (files) { return files.getAllKeys(); }); }); },
+      read: function (id) { return pending.then(function () { return run('readonly', function (files) { return files.get(id); }); }); },
+      save: function (metadata, blob, previousId) {
+        return write(function (files) {
+          var id = Core.fileId(metadata), job = files.put({ metadata: metadata, blob: blob }, id);
+          if (previousId && previousId !== id) files.delete(previousId);
+          return job;
+        });
+      },
+      remove: function (id) { return write(function (files) { return files.delete(id); }); },
+      clear: function () { return write(function (files) { return files.clear(); }); }
     };
   }
   return { create: create };

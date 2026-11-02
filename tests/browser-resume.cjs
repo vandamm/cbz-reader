@@ -56,25 +56,27 @@ const makeFixture = require('./make-fixture.cjs');
     await page.locator('#file-input').setInputFiles(second); await loaded(page,9); await ready();
     // A corrupt stored archive must fall back to reselection without saving page 1.
     await page.evaluate(async () => {
-      const cache=CBZArchiveCache.create(indexedDB), record=await cache.read();
+      const cache=CBZArchiveCache.create(indexedDB), id=JSON.parse(localStorage.getItem('cbz-reader.v1')).lastId, record=await cache.read(id);
       await cache.save(record.metadata,new Blob([new Uint8Array(record.blob.size)]));
     });
     await page.reload();
     await page.waitForFunction(() => document.getElementById('library-status').textContent.includes('saved archive could not be opened'));
     assert.match(await page.locator('#library-status').textContent(),/page 9/);
     await page.locator('#file-input').setInputFiles(second); await loaded(page,9); await ready();
-    await library(); await page.locator('#forget-file').click();
+    await library(); await page.locator('#recent-list li').filter({has:page.locator('.recent-name',{hasText:'Second'})}).locator('.remove-book').click();
     await page.waitForFunction(() => document.getElementById('library-status').textContent.includes('Saved file removed'));
-    assert.equal(await page.evaluate(() => CBZArchiveCache.create(indexedDB).read()),undefined);
+    assert.equal(await page.evaluate(() => CBZArchiveCache.create(indexedDB).read(JSON.parse(localStorage.getItem('cbz-reader.v1')).lastId)),undefined);
     assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('cbz-reader.v1')).books.find(b=>b.name==='Second.cbz').page),8);
     // Concurrent replacements and removal retain only the last committed operation.
     await page.evaluate(async () => {
       const cache=CBZArchiveCache.create(indexedDB);
       const a={name:'a.cbz',size:1,lastModified:0},b={name:'b.cbz',size:1,lastModified:0};
+      await cache.clear();
       await Promise.all([cache.save(a,new Blob(['a'])),cache.save(b,new Blob(['b']))]);
-      const record=await cache.read(); if(record.metadata.name!=='b.cbz')throw Error('Old copy overwrote the latest');
+      if((await cache.read(CBZ.fileId(a))).metadata.name!=='a.cbz')throw Error('First copy disappeared');
+      if((await cache.read(CBZ.fileId(b))).metadata.name!=='b.cbz')throw Error('Second copy disappeared');
       await Promise.all([cache.save(a,new Blob(['a'])),cache.clear()]);
-      if(await cache.read())throw Error('Removed file returned');
+      if((await cache.list()).length)throw Error('Removed file returned');
     });
     const stuck=await context.newPage(); stuck.on('pageerror',e=>errors.push(e.message));
     await stuck.addInitScript(() => {
