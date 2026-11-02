@@ -50,3 +50,40 @@ test('cancelling extraction pauses its stream and settles its promise', async ()
   await assert.rejects(extraction, /cancelled/);
   assert.equal(paused, true);
 });
+
+test('archive report identifies a JPEG cover and unsupported page formats without extracting images', async () => {
+  const zip = new JSZip();
+  zip.file('cover.jpg', PNG);
+  for (let i = 1; i <= 120; i++) zip.file(`pages/${i}.webp`, 'image data');
+  zip.file('__MACOSX/._cover.jpg', 'metadata');
+  zip.file('ComicInfo.xml', 'metadata');
+  const bytes = await zip.generateAsync({ type: 'uint8array' });
+  const noExtraction = { loadAsync: async (data, options) => {
+    const loaded = await JSZip.loadAsync(data, options);
+    for (const entry of Object.values(loaded.files)) entry.internalStream = () => { throw Error('Must not decompress pages'); };
+    return loaded;
+  } };
+  const report = await Archive.inspect(noExtraction, bytes);
+  assert.match(report, /Files: 123/);
+  assert.match(report, /JPEG\/PNG pages found: 1/);
+  assert.match(report, /WEBP: 120/);
+  assert.match(report, /JPG: 2/);
+  assert.match(report, /cover\.jpg/);
+  assert.match(report, /pages\/1\.webp/);
+});
+
+test('archive report includes hidden paths and nested archives and bounds long filenames', async () => {
+  const zip = new JSZip();
+  zip.file('.hidden/1.jpg', PNG);
+  zip.file('chapter.cbz', 'zip');
+  zip.file('unknown', 'data');
+  zip.file('x'.repeat(2000) + '.png', PNG);
+  const bytes = await zip.generateAsync({ type: 'uint8array' });
+  const report = await Archive.inspect(JSZip, bytes);
+  assert.match(report, /JPEG\/PNG pages found: 1/);
+  assert.match(report, /CBZ: 1/);
+  assert.match(report, /No extension: 1/);
+  assert.match(report, /\.hidden\/1\.jpg/);
+  assert.ok(report.length < 3000);
+  await assert.rejects(Archive.inspect(JSZip, Buffer.from('bad')), /Invalid or unsupported CBZ/);
+});

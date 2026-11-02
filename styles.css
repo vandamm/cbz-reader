@@ -17,6 +17,7 @@ h1 { font: normal 44px/1.1 Georgia, "Times New Roman", serif; letter-spacing: -1
 .file-input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
 .file-note { font-size: 13px; line-height: 1.6; color: #999; margin: 12px 0; }
 .library-status { padding: 14px 0; line-height: 1.5; color: #e0d0b2; }
+#archive-report { width: 100%; padding: 12px; background: #151515; color: #ededed; border: 1px solid #555; border-radius: 6px; font: 16px/1.5 monospace; resize: vertical; -webkit-user-select: text; user-select: text; }
 h2 { font-size: 17px; font-weight: 500; }
 .recents { margin-top: 42px; }
 .recents h2 { margin: 0 0 15px; }

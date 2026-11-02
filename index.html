@@ -10,11 +10,11 @@
   <meta name="description" content="Read local CBZ manga on your iPad. Your files stay on your device.">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <title>Manga reader</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=2">
   <script defer src="vendor/jszip.min.js"></script>
   <script defer src="core.js"></script>
-  <script defer src="archive.js"></script>
-  <script defer src="app.js"></script>
+  <script defer src="archive.js?v=2"></script>
+  <script defer src="app.js?v=2"></script>
 </head>
 <body>
   <p id="storage-warning" class="storage-warning" role="alert" hidden>Progress cannot be saved. Allow website storage and use a regular Safari tab. Keep a note of your page before closing.</p>
@@ -27,7 +27,14 @@
     <button type="button" id="open-file" class="primary">Open CBZ <span aria-hidden="true">＋</span></button>
     <input type="file" id="file-input" class="file-input" tabindex="-1" aria-label="Choose a CBZ archive">
     <p class="file-note">Choose a .cbz file from Files. It stays on this device.</p>
+    <button type="button" id="check-file">Check CBZ</button>
+    <p class="file-note">Missing pages? Check the archive without uploading it.</p>
     <p id="library-status" class="library-status" role="status" hidden></p>
+    <section id="archive-details" hidden aria-labelledby="archive-heading">
+      <h2 id="archive-heading">Archive information</h2>
+      <p class="file-note">Share this text or a screenshot to investigate missing pages. No file is uploaded. Reading progress is unchanged.</p>
+      <textarea id="archive-report" readonly rows="12" aria-label="Archive report"></textarea>
+    </section>
     <section class="recents" aria-labelledby="recent-heading">
       <h2 id="recent-heading">Pick up where you left off</h2>
       <p id="empty-library" class="muted">Books you open will appear here with your saved page.</p>

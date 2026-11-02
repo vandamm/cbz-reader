@@ -32,3 +32,7 @@ JSZip 3.10.1 distribution SHA-256: `acc7e41455a80765b5fd9c7ee1b8078a6d160bbbca45
 | Essential features in Safari 12 | ES5 syntax/API review | **Pending; not claimed complete** |
 
 No real iPad, Safari 12, physical screen lock, OS eviction, standalone storage-sharing, Files provider or old Safari memory-pressure test was performed. The generated fixture repeats a small original JPEG and is not representative of a large scan archive. Use [ios12-checklist.md](ios12-checklist.md) for those acceptance tests. Offline launch is intentionally unsupported.
+
+## Archive inspection update — 2026-11-02
+
+Added an on-device Check CBZ report so large books can be diagnosed without uploading them. The report counts file extensions and JPEG/PNG pages and includes bounded sample paths; it does not decompress images or alter checkpoints. All 19 Node tests passed, runtime scripts passed ES5 parsing, and the full desktop browser suite passed, including a JPEG cover plus 120 WebP entries and an unchanged localStorage checkpoint. The actual reported manga and real iOS 12 remain unverified until its report is shared.

@@ -5,7 +5,7 @@
   var library = byId('library'), reader = byId('reader'), stage = byId('stage');
   var toolbar = byId('toolbar'), input = byId('file-input'), slider = byId('page-slider');
   var pages = [], current = 0, file = null, displayed = null, opening = false, openGeneration = 0;
-  var expectedBook = null, immersive = false, resumeTimer = null, touch = null, multiTouch = false;
+  var expectedBook = null, inspecting = false, immersive = false, resumeTimer = null, touch = null, multiTouch = false;
   var backgrounded = document.hidden, lastTouch = 0, storageFailed = false;
   var storage;
   try { storage = window.localStorage; } catch (error) { storage = null; }
@@ -44,9 +44,10 @@
     byId('install-hint').hidden = navigator.standalone === true;
   }
 
-  function pickFile(book) {
+  function pickFile(book, check) {
     if (opening) return;
     expectedBook = book || null;
+    inspecting = check === true;
     input.value = '';
     input.click();
   }
@@ -209,7 +210,7 @@
   }
 
   input.addEventListener('change', function () {
-    var selected = input.files && input.files[0], expected = expectedBook;
+    var selected = input.files && input.files[0], expected = expectedBook, checking = inspecting;
     if (!selected || opening) return;
     if (expected && selected.name !== expected.name) {
       var mismatch = 'Choose “' + expected.name + '” to restore this book, or use Open CBZ to open a different one.';
@@ -221,15 +222,23 @@
       if (reader.hidden) libraryMessage(tooLarge); else message(tooLarge, true);
       input.value = ''; return;
     }
-    opening = true; byId('open-file').disabled = true; renderLibrary();
+    opening = true; byId('open-file').disabled = true; byId('check-file').disabled = true; renderLibrary();
     var generation = ++openGeneration;
-    libraryMessage('Opening ' + selected.name + '…');
+    libraryMessage((checking ? 'Checking ' : 'Opening ') + selected.name + '…');
+    byId('archive-details').hidden = true;
     if (!reader.hidden) { queue.cancel(); clearImage(); message('Opening archive…', false); }
     var metadata = { name: selected.name, size: selected.size, lastModified: selected.lastModified || 0 };
     var record = store.find(metadata) || expected;
     pages = []; // Release the old compressed archive before reading its replacement.
-    Archive.open(window.JSZip, selected).then(function (entries) {
+    var operation = checking ? Archive.inspect(window.JSZip, selected) : Archive.open(window.JSZip, selected);
+    operation.then(function (entries) {
       if (generation !== openGeneration) return;
+      if (checking) {
+        byId('archive-report').value = entries;
+        byId('archive-details').hidden = false;
+        libraryMessage('Archive checked locally. Share the report below; the CBZ does not need to be sent.');
+        return;
+      }
       pages = entries; file = metadata; current = Core.restoredPage(record, pages);
       input.value = ''; checkpoint(); updatePosition();
       byId('book-title').textContent = metadata.name.replace(/\.cbz$/i, '');
@@ -241,7 +250,7 @@
       if (generation !== openGeneration) return;
       if (reader.hidden) libraryMessage(error.message); else pageError(error);
     }).then(function () {
-      opening = false; byId('open-file').disabled = false; input.value = ''; renderLibrary();
+      opening = false; byId('open-file').disabled = false; byId('check-file').disabled = false; input.value = ''; renderLibrary();
     });
   });
 
@@ -304,6 +313,7 @@
     });
   });
   byId('open-file').addEventListener('click', function () { pickFile(null); });
+  byId('check-file').addEventListener('click', function () { pickFile(null, true); });
   byId('reselect-file').addEventListener('click', function () { pickFile(file ? store.find(file) : store.last()); });
   byId('retry-page').addEventListener('click', function () { if (pages.length) requestPage(); else pickFile(store.last()); });
   byId('back-library').addEventListener('click', toLibrary);

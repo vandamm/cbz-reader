@@ -8,6 +8,8 @@ Open **https://vandamm.github.io/cbz-reader/** in Safari and tap **Open CBZ** to
 
 Keep using this same URL to retain your reading history. Progress from a previous localhost/LAN URL belongs to that different browser origin and does not transfer automatically. Internet access is needed to launch/reload the site; selected manga still stays on your device.
 
+If a book appears to contain only one page, return to Library and tap **Check CBZ**, then select the same file. The report lists file formats, the JPEG/PNG page count and sample paths. Send that short text or a screenshot instead of the large CBZ. Inspection stays on the device, does not decompress images or change saved progress, and uses the same 200 MiB archive safety limit. The report uses ZIP filenames/extensions; it does not verify the contents of unsupported images.
+
 ## Run on macOS
 
 From this folder:

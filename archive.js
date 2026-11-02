@@ -6,13 +6,41 @@
   var MAX_ARCHIVE_BYTES = 200 * 1024 * 1024;
   var MAX_PAGE_BYTES = 24 * 1024 * 1024;
 
-  function open(JSZip, data) {
+  function readEntries(JSZip, data) {
     return JSZip.loadAsync(data, { createFolders: false, checkCRC32: false }).then(function (zip) {
-      var pages = Core.pageEntries(Object.keys(zip.files).map(function (key) { return zip.files[key]; }));
-      if (!pages.length) throw Error('No JPEG or PNG pages were found in this archive.');
-      return pages;
+      return Object.keys(zip.files).map(function (key) { return zip.files[key]; });
     }, function () {
       throw Error('Invalid or unsupported CBZ. Choose a ZIP-based CBZ with JPEG/PNG pages. Encrypted, split, RAR and 7z archives are unsupported.');
+    });
+  }
+
+  function open(JSZip, data) {
+    return readEntries(JSZip, data).then(function (entries) {
+      var pages = Core.pageEntries(entries);
+      if (!pages.length) throw Error('No JPEG or PNG pages were found in this archive.');
+      return pages;
+    });
+  }
+
+  function inspect(JSZip, data) {
+    return readEntries(JSZip, data).then(function (entries) {
+      var files = entries.filter(function (entry) { return !entry.dir; });
+      var formats = Object.create(null);
+      files.forEach(function (entry) {
+        var match = entry.name.match(/\.([^./\\]+)$/);
+        var format = match ? match[1].toUpperCase().slice(0, 24) : 'No extension';
+        formats[format] = (formats[format] || 0) + 1;
+      });
+      var lines = ['Archive check v1', 'Files: ' + files.length,
+        'JPEG/PNG pages found: ' + Core.pageEntries(entries).length, '', 'File types:'];
+      Object.keys(formats).sort(Core.naturalCompare).slice(0, 20).forEach(function (format) {
+        lines.push(format + ': ' + formats[format]);
+      });
+      lines.push('', 'Sample paths (including files skipped by the reader):');
+      files.sort(function (a, b) { return Core.naturalCompare(a.name, b.name); }).slice(0, 12).forEach(function (entry) {
+        lines.push(entry.name.slice(0, 160));
+      });
+      return lines.join('\n');
     });
   }
 
@@ -83,6 +111,6 @@
     return promise;
   }
 
-  return { open: open, extract: extract, imageInfo: imageInfo,
+  return { open: open, inspect: inspect, extract: extract, imageInfo: imageInfo,
     MAX_ARCHIVE_BYTES: MAX_ARCHIVE_BYTES, MAX_PAGE_BYTES: MAX_PAGE_BYTES };
 }));
