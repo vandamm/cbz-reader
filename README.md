@@ -39,11 +39,13 @@ For deployment, copy `index.html`, `styles.css`, `core.js`, `archive.js`, `app.j
 - **Tap right:** next page. **Tap left:** previous page.
 - **Swipe right:** next page by default. Change “Next page” in the toolbar to reverse swipes. Tap directions stay unchanged.
 - **Tap center:** reveal or hide the toolbar.
+- **Pinch:** enlarge/shrink the page between its fitted size and 4×. **Double tap:** switch between 2× at the tapped point and the original fitted size.
+- **Drag an enlarged page:** move around it. Side taps and swipes do not turn pages while enlarged; double tap to return to fit before continuing. Center taps still show controls, and the slider can change pages at any scale.
 - Use the page slider to jump. Its page position is saved immediately on every change.
 - **Library** closes the archive and releases image resources. Recent entries let you select the file again and resume.
 - Arrow keys navigate; Space shows controls when the page surface has keyboard focus. Buttons, select and slider also support keyboard/VoiceOver.
 
-The whole image fits the usable viewport without cropping or stretching. Black space is expected when image and screen proportions differ. Double taps, pinches, long-press selection and dragging on the reading surface are intercepted to prevent accidental navigation/zoom. Library and toolbar keep ordinary browser accessibility behavior; Safari may still reserve its own edge/system gestures.
+Each page opens fitted to the usable viewport without cropping or stretching. Changing pages, rotating/resizing the viewport or returning from background resets the zoom to fit; the saved page is unchanged. Black space is expected when image and screen proportions differ. Zoom uses a CSS transform on the existing image/canvas, without decoding another copy or enlarging the canvas buffer. Single touch taps wait briefly for a possible second tap, so a double tap does not turn the page first. Long-press selection and browser zoom on the reading surface are intercepted. Library and toolbar keep ordinary browser accessibility behavior; Safari may still reserve its own edge/system gestures. Escape resets zoom and reveals controls.
 
 ## Progress and reselection
 
@@ -63,11 +65,9 @@ When hidden or receiving `pagehide`, the reader checkpoints, invalidates pending
 
 If iOS terminates the process, the last successful checkpoint is used after launch and file reselection. The app cannot prevent iOS from killing a tab or force suspended JavaScript to run. Real short/extended screen locks and memory pressure still require device testing; use [the manual checklist](docs/ios12-checklist.md).
 
-## Fullscreen and Home Screen mode
+## Home Screen mode
 
-The accessible Fullscreen button detects both standard and WebKit-prefixed element fullscreen methods **and their enabled flags**. It attempts native fullscreen only when supported; rejection falls back to an immersive reader. A dedicated **Exit fullscreen** button stays visible at the top right while fullscreen/immersive mode is active; tap it to exit without moving the page. Tapping the center still shows/hides the toolbar. Escape also exits when a button has focus. Legacy WebKit fullscreen element/flag properties are recognized.
-
-CSS immersive mode hides the toolbar while retaining the exit button; **it cannot remove Safari’s browser chrome**. When falling back, the revealed toolbar explains this. For more space on iOS 12, use Safari > Share > **Add to Home Screen**, then launch the icon. Apple web-app meta tags are included and `navigator.standalone` is detected. Native fullscreen availability varies by browser, device and context; Home Screen launch is a separate mode. See [Apple’s Safari Web Content Guide](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html).
+Fullscreen has been removed at the user's request. Center taps only hide/reveal the reader toolbar; Safari's own bars remain under Safari's control. For more space on iOS 12, use Safari > Share > **Add to Home Screen**, then launch the icon. Apple web-app meta tags are included and `navigator.standalone` is detected. See [Apple’s Safari Web Content Guide](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html).
 
 ## Memory and archive limits
 
@@ -92,7 +92,7 @@ The decoder and worker files come from this same site, with no CDN or uploads. T
 
 ## Offline and browser compatibility
 
-Core reading, localStorage, Files selection and CSS immersive mode need no HTTPS. LAN HTTP works. Service workers require a secure context (HTTPS or localhost on the device); a Mac’s LAN HTTP address is not that exception. This version has **no service worker or guaranteed offline launch**, even after Add to Home Screen. Ordinary HTTP caching is not an offline guarantee. An open, in-memory archive can be read while disconnected until iOS discards the page.
+Core reading, localStorage, Files selection and touch zoom need no HTTPS. LAN HTTP works. Service workers require a secure context (HTTPS or localhost on the device); a Mac’s LAN HTTP address is not that exception. This version has **no service worker or guaranteed offline launch**, even after Add to Home Screen. Ordinary HTTP caching is not an offline guarantee. An open, in-memory archive can be read while disconnected until iOS discards the page.
 
 Runtime JavaScript uses ES5 syntax and Safari 12-compatible APIs: Promise, FileReader (through JSZip), Blob, typed arrays, object URLs, touch events and localStorage. It does not require Blob.arrayBuffer, modules, async functions, pointer events, ResizeObserver, dynamic viewport units or the File System Access API.
 
@@ -118,10 +118,12 @@ PLAYWRIGHT_MODULE=/tmp/cbz-reader-checks/node_modules/playwright node tests/brow
 
 Also run `node tests/browser-webp.cjs` with the same Playwright environment to check a 190-page JPEG/WebP book in both native and forced fallback modes, including decoded pixels, checkpoint restoration, lifecycle recovery and worker cleanup.
 
-Run the HTTP server first. `READER_URL` defaults to `http://127.0.0.1:8080/`; `BROWSER_EXECUTABLE` can select an existing Chromium executable. The script checks 120 JPEG page changes, navigation, reload/reselection, lifecycle event recovery, CSS fullscreen fallback, rotation, URL release, rapid jumps, revised archives and storage refusal. It creates screenshots in `tests/`. Desktop lifecycle events and viewport changes are simulations, not proof of iOS screen-lock behavior.
+Also run `node tests/browser-zoom.cjs` with that environment to check real Chromium touch input: pinch, double tap, bounded pan, gesture/navigation separation, checkpoints and zoom reset on page/viewport/lifecycle changes.
+
+Run the HTTP server first. `READER_URL` defaults to `http://127.0.0.1:8080/`; `BROWSER_EXECUTABLE` can select an existing Chromium executable. The script checks 120 JPEG page changes, navigation, reload/reselection, lifecycle event recovery, toolbar visibility, rotation, URL release, rapid jumps, revised archives and storage refusal. It creates screenshots in `tests/`. Desktop lifecycle events and viewport changes are simulations, not proof of iOS screen-lock behavior.
 
 **Verification status:** automated checks and desktop results are recorded in [verification.md](docs/verification.md). Real iOS 12 acceptance remains pending until the physical-device checklist is completed.
 
 ## Files and licensing
 
-`core.js` contains testable ordering, checkpoint and navigation state; `archive.js` bounds ZIP page extraction and validates image headers; `app.js` handles the DOM, touch, fullscreen and lifecycle. `webp.js`, `webp-runtime.js` and `webp-worker.js` provide the local legacy-browser fallback. JSZip is pinned to 3.10.1; its upstream license is in `vendor/JSZip-LICENSE.markdown` and the distribution includes bundled dependency notices. No reader code sends file content over the network.
+`core.js` contains testable ordering, checkpoint and navigation state; `archive.js` bounds ZIP page extraction and validates image headers; `app.js` handles the DOM, touch zoom and lifecycle. `webp.js`, `webp-runtime.js` and `webp-worker.js` provide the local legacy-browser fallback. JSZip is pinned to 3.10.1; its upstream license is in `vendor/JSZip-LICENSE.markdown` and the distribution includes bundled dependency notices. No reader code sends file content over the network.

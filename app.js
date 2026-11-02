@@ -5,7 +5,8 @@
   var library = byId('library'), reader = byId('reader'), stage = byId('stage');
   var toolbar = byId('toolbar'), input = byId('file-input'), slider = byId('page-slider');
   var pages = [], current = 0, file = null, displayed = null, opening = false, openGeneration = 0;
-  var expectedBook = null, inspecting = false, immersive = false, resumeTimer = null, touch = null, multiTouch = false;
+  var expectedBook = null, inspecting = false, resumeTimer = null, touch = null, pinch = null;
+  var zoom = { scale: 1, x: 0, y: 0 }, pendingTap = null, tapTimer = null;
   var backgrounded = document.hidden, lastTouch = 0, storageFailed = false;
   var storage;
   try { storage = window.localStorage; } catch (error) { storage = null; }
@@ -67,7 +68,7 @@
     if (resource.url) window.URL.revokeObjectURL(resource.url);
   }
 
-  function clearImage() { dispose(displayed); displayed = null; }
+  function clearImage() { dispose(displayed); displayed = null; resetZoom(); }
 
   function message(text, recovery) {
     byId('page-message-text').textContent = text;
@@ -139,6 +140,7 @@
       if (displayed === resource) requestPage();
     });
     stage.insertBefore(resource.image, stage.firstChild);
+    renderZoom();
     byId('page-message').hidden = true;
   }
 
@@ -171,73 +173,11 @@
     byId('toggle-controls').setAttribute('aria-label', show ? 'Hide reader controls' : 'Show reader controls');
   }
 
-  function nativeElement() {
-    return document.fullscreenElement || document.webkitFullscreenElement ||
-      document.webkitCurrentFullScreenElement || (document.webkitIsFullScreen ? reader : null);
-  }
-
-  function updateFullscreen() {
-    byId('fullscreen').textContent = immersive ? 'Exit fullscreen' : 'Fullscreen';
-    byId('fullscreen').setAttribute('aria-pressed', String(immersive));
-    byId('exit-fullscreen').hidden = !immersive;
-  }
-
-  function fallbackNote() {
-    byId('fullscreen-note').textContent = navigator.standalone === true ?
-      'Home Screen mode. Tap the center to hide controls.' :
-      'Immersive mode hides reader controls. Safari’s bars may remain. Use Share > Add to Home Screen for more room.';
-    byId('fullscreen-note').hidden = false;
-  }
-
-  function exitNative() {
-    var exit = document.exitFullscreen || document.webkitExitFullscreen || document.webkitCancelFullScreen;
-    if (!nativeElement()) return Promise.resolve();
-    if (!exit) return Promise.reject(Error('Fullscreen exit is unavailable.'));
-    try { return Promise.resolve(exit.call(document)); }
-    catch (error) { return Promise.reject(error); }
-  }
-
-  function leaveFullscreen() {
-    controls(true);
-    exitNative().then(function () {
-      immersive = !!nativeElement(); updateFullscreen();
-    }, function () {
-      immersive = !!nativeElement(); updateFullscreen();
-      byId('fullscreen-note').textContent = 'Safari could not exit fullscreen. Tap Exit fullscreen again.';
-      byId('fullscreen-note').hidden = false;
-    });
-  }
-
-  function toggleFullscreen() {
-    if (immersive) {
-      leaveFullscreen(); return;
-    }
-    immersive = true; controls(false); updateFullscreen(); fallbackNote();
-    var request = null;
-    if (document.fullscreenEnabled && reader.requestFullscreen) request = reader.requestFullscreen;
-    else if (document.webkitFullscreenEnabled && reader.webkitRequestFullscreen) request = reader.webkitRequestFullscreen;
-    else if (document.webkitFullscreenEnabled && reader.webkitRequestFullScreen) request = reader.webkitRequestFullScreen;
-    if (request && navigator.standalone !== true) {
-      try {
-        var result = request.call(reader);
-        if (result && result.catch) result.catch(fallbackNote);
-      } catch (error) { fallbackNote(); }
-    }
-    resize();
-  }
-
-  function fullscreenChanged() {
-    if (nativeElement()) {
-      immersive = true; byId('fullscreen-note').hidden = true;
-    } else { immersive = false; controls(true); }
-    updateFullscreen(); resize();
-  }
-
   function toLibrary() {
     openGeneration++;
     checkpoint(); queue.cancel(); clearImage();
     WebP.release();
-    pages = []; file = null; immersive = false; exitNative().catch(function () {}); updateFullscreen();
+    pages = []; file = null;
     reader.hidden = true; library.hidden = false; document.body.classList.remove('reading');
     document.title = 'Manga reader'; controls(false); libraryMessage(''); renderLibrary();
     byId('open-file').focus();
@@ -290,6 +230,7 @@
 
   function resize() {
     // innerHeight follows the usable Safari viewport; 100vh does not on old iOS.
+    if (reader.style.height !== window.innerHeight + 'px' || reader.style.width !== window.innerWidth + 'px') resetZoom();
     reader.style.height = window.innerHeight + 'px';
     reader.style.width = window.innerWidth + 'px';
   }
@@ -318,31 +259,115 @@
     else if (name === 'controls') controls(toolbar.hidden);
   }
 
+  function cancelTap() {
+    window.clearTimeout(tapTimer); pendingTap = null; tapTimer = null;
+  }
+
+  function renderZoom() {
+    if (!displayed) return;
+    var image = displayed.image, bounds = stage.getBoundingClientRect();
+    var width = image.naturalWidth || image.width, height = image.naturalHeight || image.height;
+    var fit = Math.min(bounds.width / width, bounds.height / height);
+    var limitX = Math.max(0, (width * fit * zoom.scale - bounds.width) / 2);
+    var limitY = Math.max(0, (height * fit * zoom.scale - bounds.height) / 2);
+    zoom.x = Math.max(-limitX, Math.min(limitX, zoom.x));
+    zoom.y = Math.max(-limitY, Math.min(limitY, zoom.y));
+    image.style.transform = 'translate(' + zoom.x + 'px,' + zoom.y + 'px) scale(' + zoom.scale + ')';
+  }
+
+  function resetZoom() {
+    cancelTap(); touch = null; pinch = null;
+    zoom = { scale: 1, x: 0, y: 0 }; renderZoom();
+  }
+
+  function toggleZoom(point) {
+    if (zoom.scale > 1) { resetZoom(); return; }
+    var bounds = stage.getBoundingClientRect();
+    zoom = { scale: 2, x: bounds.left + bounds.width / 2 - point.clientX,
+      y: bounds.top + bounds.height / 2 - point.clientY };
+    renderZoom();
+  }
+
+  function tap(point, name) {
+    var now = Date.now();
+    if (pendingTap && now - pendingTap.time < 350 &&
+        Math.abs(point.clientX - pendingTap.x) < 40 && Math.abs(point.clientY - pendingTap.y) < 40) {
+      cancelTap(); toggleZoom(point); return;
+    }
+    cancelTap();
+    pendingTap = { x: point.clientX, y: point.clientY, time: now, action: name };
+    // Wait for a second tap before navigating away from the page being enlarged.
+    tapTimer = window.setTimeout(function () {
+      var name = pendingTap && pendingTap.action; cancelTap(); action(name);
+    }, 320);
+  }
+
+  function startTouch(point, blocked) {
+    touch = { x: point.clientX, y: point.clientY, time: Date.now(),
+      panX: zoom.x, panY: zoom.y, moved: false, blocked: blocked };
+  }
+
+  function startPinch(points) {
+    cancelTap(); touch = null;
+    var bounds = stage.getBoundingClientRect();
+    var dx = points[1].clientX - points[0].clientX, dy = points[1].clientY - points[0].clientY;
+    pinch = { distance: Math.max(1, Math.sqrt(dx * dx + dy * dy)), scale: zoom.scale,
+      x: zoom.x, y: zoom.y, centerX: (points[0].clientX + points[1].clientX) / 2 - bounds.left - bounds.width / 2,
+      centerY: (points[0].clientY + points[1].clientY) / 2 - bounds.top - bounds.height / 2 };
+  }
+
   stage.addEventListener('touchstart', function (event) {
-    multiTouch = event.touches.length !== 1;
-    if (multiTouch) { touch = null; event.preventDefault(); return; }
+    event.preventDefault(); lastTouch = Date.now();
+    if (!displayed || opening) return;
+    if (event.touches.length > 1) { startPinch(event.touches); return; }
     var point = event.touches[0];
-    touch = { x: point.clientX, y: point.clientY, time: Date.now() };
+    if (pendingTap && Math.abs(point.clientX - pendingTap.x) < 40 && Math.abs(point.clientY - pendingTap.y) < 40) {
+      window.clearTimeout(tapTimer);
+    }
+    startTouch(point, false);
   }, { passive: false });
   stage.addEventListener('touchmove', function (event) {
     event.preventDefault();
-    if (event.touches.length !== 1) { multiTouch = true; touch = null; }
+    if (event.touches.length > 1) {
+      if (!pinch) startPinch(event.touches);
+      var a = event.touches[0], b = event.touches[1], bounds = stage.getBoundingClientRect();
+      var dx = b.clientX - a.clientX, dy = b.clientY - a.clientY;
+      zoom.scale = Math.max(1, Math.min(4, pinch.scale * Math.sqrt(dx * dx + dy * dy) / pinch.distance));
+      zoom.x = (a.clientX + b.clientX) / 2 - bounds.left - bounds.width / 2 - (pinch.centerX - pinch.x) * zoom.scale / pinch.scale;
+      zoom.y = (a.clientY + b.clientY) / 2 - bounds.top - bounds.height / 2 - (pinch.centerY - pinch.y) * zoom.scale / pinch.scale;
+      renderZoom(); return;
+    }
+    if (!touch || !event.touches.length) return;
+    var point = event.touches[0], moveX = point.clientX - touch.x, moveY = point.clientY - touch.y;
+    if (Math.abs(moveX) > 12 || Math.abs(moveY) > 12) { touch.moved = true; cancelTap(); }
+    if (zoom.scale > 1) { zoom.x = touch.panX + moveX; zoom.y = touch.panY + moveY; renderZoom(); }
   }, { passive: false });
   stage.addEventListener('touchend', function (event) {
     event.preventDefault(); lastTouch = Date.now();
-    if (!touch || multiTouch || event.touches.length) { touch = null; return; }
+    if (event.touches.length > 1) { startPinch(event.touches); return; }
+    if (event.touches.length) { pinch = null; startTouch(event.touches[0], true); return; }
+    var previous = touch; touch = null; pinch = null;
+    if (!previous || previous.blocked) return;
     var point = event.changedTouches[0], bounds = stage.getBoundingClientRect();
-    action(Core.gestureAction(touch.x - bounds.left, point.clientX - bounds.left,
-      point.clientY - touch.y, Date.now() - touch.time, bounds.width, store.reverseSwipe()));
-    touch = null;
+    var dx = point.clientX - previous.x, dy = point.clientY - previous.y, elapsed = Date.now() - previous.time;
+    var name = Core.gestureAction(previous.x - bounds.left, point.clientX - bounds.left,
+      dy, elapsed, bounds.width, store.reverseSwipe());
+    if (!previous.moved && Math.abs(dx) <= 12 && Math.abs(dy) <= 12 && elapsed <= 700) {
+      tap(point, zoom.scale > 1 && name !== 'controls' ? null : name);
+    } else {
+      cancelTap(); if (zoom.scale === 1 && (Math.abs(dx) > 12 || Math.abs(dy) > 12)) action(name);
+    }
   }, { passive: false });
-  stage.addEventListener('touchcancel', function () { touch = null; });
-  stage.addEventListener('gesturestart', function (event) { event.preventDefault(); });
+  stage.addEventListener('touchcancel', function () { touch = null; pinch = null; cancelTap(); lastTouch = Date.now(); });
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (name) {
+    stage.addEventListener(name, function (event) { event.preventDefault(); }, { passive: false });
+  });
   stage.addEventListener('contextmenu', function (event) { event.preventDefault(); });
   stage.addEventListener('dragstart', function (event) { event.preventDefault(); });
   ['previous', 'next', 'toggle-controls'].forEach(function (id) {
     byId(id).addEventListener('click', function (event) {
       if (event.detail !== 0 && Date.now() - lastTouch < 700) return;
+      if (zoom.scale > 1 && id !== 'toggle-controls' && event.detail !== 0) return;
       action(id === 'toggle-controls' ? 'controls' : id);
     });
   });
@@ -352,14 +377,12 @@
   byId('retry-page').addEventListener('click', function () { if (pages.length) requestPage(); else pickFile(store.last()); });
   byId('back-library').addEventListener('click', toLibrary);
   byId('error-library').addEventListener('click', toLibrary);
-  byId('fullscreen').addEventListener('click', toggleFullscreen);
-  byId('exit-fullscreen').addEventListener('click', leaveFullscreen);
   slider.addEventListener('input', function () { goTo(Number(slider.value) - 1); });
   byId('swipe-direction').value = store.reverseSwipe() ? 'left' : 'right';
   byId('swipe-direction').addEventListener('change', function (event) { store.setReverseSwipe(event.target.value === 'left'); });
   document.addEventListener('keydown', function (event) {
     if (reader.hidden) return;
-    if (event.key === 'Escape') { event.preventDefault(); leaveFullscreen(); return; }
+    if (event.key === 'Escape') { event.preventDefault(); resetZoom(); controls(true); return; }
     if (/^(INPUT|SELECT|BUTTON)$/.test(event.target.tagName)) return;
     if (event.key === 'ArrowRight') { event.preventDefault(); action('next'); }
     else if (event.key === 'ArrowLeft') { event.preventDefault(); action('previous'); }
@@ -372,10 +395,6 @@
   window.addEventListener('focus', resume);
   window.addEventListener('resize', resize);
   window.addEventListener('orientationchange', function () { resize(); window.setTimeout(resize, 250); });
-  document.addEventListener('fullscreenchange', fullscreenChanged);
-  document.addEventListener('webkitfullscreenchange', fullscreenChanged);
-  document.addEventListener('fullscreenerror', fallbackNote);
-  document.addEventListener('webkitfullscreenerror', fallbackNote);
   renderLibrary(); resize();
   var last = store.last();
   if (last) libraryMessage('Select ' + last.name + ' to continue at page ' + (last.page + 1) + '. Your place is remembered; the file needs to be selected again.');

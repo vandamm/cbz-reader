@@ -26,7 +26,7 @@ JSZip 3.10.1 distribution SHA-256: `acc7e41455a80765b5fd9c7ee1b8078a6d160bbbca45
 | Progress after Safari restart | New store/context with persisted storage passed | Actual Safari termination pending |
 | Lock/unlock | Event recovery and cancellation tested | Short/extended real locks pending |
 | Background/return | pagehide/pageshow simulated; URL invalidation tested | Actual iOS backgrounding pending |
-| Fullscreen | Native Chromium + CSS fallback tested; standard/WebKit detection implemented | Actual iOS 12 native/fallback pending |
+| Touch zoom (replaces fullscreen) | Chromium touch input and WebP image/canvas zoom tested; see latest record below | Real pinch/double tap pending |
 | Portrait/landscape | Desktop viewport changes and visual inspection | Actual rotation pending |
 | Bounded image resources | Maximum 1 live image URL through 120 pages | Real memory pressure/long session pending |
 | Essential features in Safari 12 | ES5 syntax/API review | **Pending; not claimed complete** |
@@ -53,3 +53,18 @@ The actual manga file and a physical iPad mini 2/iOS 12 remain untested. Forced 
 Added a persistent 48px-high top-right Exit fullscreen button when native fullscreen or CSS immersive mode is active. The toolbar can remain hidden. The shared exit path preserves the current page, recognizes legacy WebKit fullscreen element/boolean properties, handles native rejection without hiding the exit, and responds to Escape with a control focused.
 
 A browser regression first failed because no visible exit existed. The fixed suite passes CSS fallback, actual Chromium fullscreen, simulated legacy WebKit element and flag states, delayed void-returning exit, a rejected exit followed by retry, and touch/Escape at page 57 without progress loss. Existing 27 Node tests and the 120-page browser regression suite pass; app.js still parses as ES5. Portrait screenshot visually checked. Real iPad/Safari 12 verification remains pending.
+
+
+## Touch zoom and fullscreen removal — 2026-11-02
+
+Fullscreen buttons, native/WebKit API calls, CSS immersive state and the obsolete fullscreen test have been removed at the user's request. The Home Screen installation option remains. The older fullscreen records above describe superseded releases.
+
+The existing page image or WebP canvas now supports 1–4× pinch zoom, bounded one-finger pan, and double tap between 2× at the tapped point and fitted size. Touch taps wait 320 ms for a second tap before taking an action. Side taps/swipes are suppressed while enlarged; center taps, keyboard page buttons and the slider remain usable. New pages, viewport changes and suspension/recovery reset zoom without changing saved progress.
+
+- The new regression first failed because double tap kept the page at 1×. Its passing Chromium/CDP touch run covers both edge double taps, pinch with a moving midpoint, bounded pan, one finger remaining after pinch, shrink-to-fit without navigation, center controls at enlarged scale, touch cancellation, 4× cap, keyboard activation and page/rotation/resume reset. At page 57, gestures leave both the counter and checkpoint unchanged. Browser viewport scale remains 1.
+- All 27 Node tests pass and all runtime scripts still parse as ES5.
+- The complete 120-page JPEG regression suite passes, including checkpoint/reselection, lifecycle recovery, bounded URLs and archive/open/cancellation errors.
+- The 190-page WebP suite passes native and forced fallback modes, including double-tap zoom on the image/canvas with no extra worker, checkpoint recovery and cleanup.
+- The zoomed-page screenshot was visually inspected. Zoom transforms the existing resource; it does not allocate another decoded page/canvas.
+
+Real iPad mini 2 / Safari 12 pinch, double-tap timing, lock/resume and GPU memory behavior remain untested; the manual checklist now covers them.

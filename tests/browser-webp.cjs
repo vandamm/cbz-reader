@@ -77,6 +77,21 @@ const image = name => fs.readFileSync(path.join(__dirname,'webp',name));
         assert.equal(await page.evaluate(()=>workerStarts),0,'native WebP must not load the fallback decoder');
         await jump(57);
       }
+      async function doubleTap() {
+        await page.locator('#stage').evaluate(stage => {
+          for (let n=0;n<2;n++) for (const type of ['touchstart','touchend']) {
+            const point={clientX:600,clientY:400}, event=new Event(type,{bubbles:true,cancelable:true});
+            Object.defineProperties(event,{touches:{value:type==='touchstart'?[point]:[]},changedTouches:{value:[point]}});
+            stage.dispatchEvent(event);
+          }
+        });
+      }
+      await doubleTap();
+      assert.equal(await page.locator('.page-image').evaluate(el=>new DOMMatrix(getComputedStyle(el).transform).a),2);
+      assert.equal(await page.locator('#page-count').textContent(),'57 / 190');
+      assert.equal(await page.evaluate(()=>liveWorkers.size),fallback?1:0,'zoom reuses the existing decoded page');
+      await doubleTap();
+      assert.equal(await page.locator('.page-image').evaluate(el=>new DOMMatrix(getComputedStyle(el).transform).a),1);
       await page.reload();
       assert.match(await page.locator('#library-status').textContent(),/page 57/);
       await page.locator('#file-input').setInputFiles(payload);await loaded(57);
@@ -85,7 +100,7 @@ const image = name => fs.readFileSync(path.join(__dirname,'webp',name));
       assert.equal(await page.evaluate(()=>liveWorkers.size),0);
       assert.equal(await page.evaluate(()=>liveURLs.size),0);
       await context.close();
-      console.log((fallback?'Fallback worker':'Native WebP')+' reading, progress, resource cleanup: passed');
+      console.log((fallback?'Fallback worker':'Native WebP')+' reading, touch zoom, progress, resource cleanup: passed');
     }
     assert.deepEqual(errors,[]);
   } finally {await browser.close();}
