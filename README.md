@@ -39,7 +39,7 @@ For deployment, copy `index.html`, `styles.css`, `core.js`, `archive.js`, `archi
 - **Tap right:** next page. **Tap left:** previous page.
 - **Swipe right:** next page by default. Change “Next page” in the toolbar to reverse swipes. Tap directions stay unchanged.
 - **Tap center:** reveal or hide the toolbar.
-- With the toolbar hidden, a small current/total page indicator remains at the bottom. It lets touches pass through and stays fixed while the image is enlarged.
+- A current/total page counter always stays at the top right of the reader, independent of the toolbar. It lets touches pass through, stays above enlarged images, and avoids the bottom edge where stale mobile viewport heights can hide it.
 - **Pinch:** enlarge/shrink the page between its fitted size and 4×. **Double tap:** switch between 2× at the tapped point and the original fitted size.
 - **Drag an enlarged page:** move around it. Side taps and swipes do not turn pages while enlarged; double tap to return to fit before continuing. Center taps still show controls, and the slider can change pages at any scale.
 - Use the page slider to jump. Its page position is saved immediately on every change.
@@ -126,6 +126,8 @@ Also run `node tests/browser-webp.cjs` with the same Playwright environment to c
 Run `node tests/browser-library.cjs` to check migration from the old single-file database, two independently saved books, click-to-resume at different pages, restart, listing without loading all archive Blobs, per-book removal, metadata drift and a slow startup listing overlapping manual selection.
 
 Run `node tests/browser-resume.cjs` to check a persistent browser profile across full browser-process restarts, automatic resume, explicit Library exit, Continue, missing/corrupt copies, quota failure, removal and storage timeouts. It creates and deletes its own temporary profile.
+
+Run `node tests/browser-counter.cjs` to check the counter above JPEG/WebP images with a simulated stale viewport height, controls shown/hidden, zoom, tap-through, rotation, lifecycle recovery and automatic reopen. This reproduces a clipping case, not the exact behavior of a physical iOS 12 device.
 
 Also run `node tests/browser-zoom.cjs` with that environment to check real Chromium touch input: pinch, double tap, bounded pan, gesture/navigation separation, checkpoints and zoom reset on page/viewport/lifecycle changes.
 

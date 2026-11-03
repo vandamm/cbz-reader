@@ -158,7 +158,6 @@
 
   function updatePosition() {
     byId('page-count').textContent = (current + 1) + ' / ' + pages.length;
-    byId('reading-position').textContent = byId('page-count').textContent;
     slider.max = String(pages.length); slider.value = String(current + 1);
     slider.setAttribute('aria-valuetext', 'Page ' + (current + 1) + ' of ' + pages.length);
     byId('previous').setAttribute('aria-disabled', String(current === 0));
@@ -182,7 +181,6 @@
 
   function controls(show) {
     toolbar.hidden = !show;
-    byId('reading-position').hidden = show;
     byId('toggle-controls').setAttribute('aria-expanded', String(show));
     byId('toggle-controls').setAttribute('aria-label', show ? 'Hide reader controls' : 'Show reader controls');
   }

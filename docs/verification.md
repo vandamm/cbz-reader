@@ -100,3 +100,10 @@ The IndexedDB database upgrades from version 1 to version 2 in one upgrade trans
 - All 28 Node tests pass; changed runtime scripts parse as ES5. The existing 120-page/reselection suite, automatic-resume/error suite, and both native and forced fallback WebP suites pass. The two-book portrait library screenshot was visually inspected.
 
 Real iPad/iOS 12 library size, disk quota, migration under OS termination and extended reading remain pending. Existing metadata-only history cannot recreate original files: each such book needs one file reselection before it can Continue from local storage.
+
+
+## Persistent top-right counter — 2026-11-03
+
+The reported missing counter was not reproduced in the normal published Chromium flow. A regression did reproduce clipping when innerHeight was stale (1024px reported while only 768px was visible). The fix uses one page-count output outside the toolbar, always mounted while reading, at the top right with safe-area padding. The image stage has its own stacking context so zoomed images/canvases stay below the counter. There is no separate hidden-counter state or duplicate text update.
+
+All 28 Node tests and ES5 parsing pass. The complete 120-page browser suite passes. The counter regression passes JPEG and forced fallback WebP canvas with hidden/shown controls, zoom, a stale viewport height, paint/hit-test ordering, touch pass-through, rotation, pagehide/pageshow and reload from the saved archive. The overlay screenshot was visually inspected. The exact physical iPad/iOS 12 cause and real-device behavior remain unverified.

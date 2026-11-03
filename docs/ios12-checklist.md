@@ -6,7 +6,7 @@ Record device/OS, URL, Safari tab vs Home Screen, archive compressed size, typic
 
 ## Opening and reading
 
-- [ ] Open https://vandamm.github.io/cbz-reader/?v=8 in Safari on the iPad (or use the optional Mac/LAN server).
+- [ ] Open https://vandamm.github.io/cbz-reader/?v=9 in Safari on the iPad (or use the optional Mac/LAN server).
 - [ ] Open the generated 120-page JPEG CBZ from On My iPad in Files.
 - [ ] Open a 100+ page real JPEG manga, a PNG book, and an archive with nested folders.
 - [ ] Open the mixed JPEG/WebP manga: all 190 images must appear, with the 10 JSON files skipped. Check both lossy/lossless WebP and transparency; static pages only. On Safari 12 this exercises the worker/canvas fallback.
@@ -52,7 +52,7 @@ Perform each case at page **57**, then check counter, page content, right/left n
 ## Screen area
 
 - [ ] Tap center repeatedly; controls hide/reveal without moving the page.
-- [ ] With controls hidden, the small current/total page number remains at the bottom and updates after navigation. It stays fixed during zoom/rotation and does not block center taps; opening controls hides the duplicate indicator.
+- [ ] The current/total counter stays at the top right with controls hidden or visible, on JPEG and WebP pages. Check after zoom, portrait/landscape rotation, lock/resume and automatic reopen from the Home Screen. The counter must remain above the image, below the status-bar safe area, and inside the visible screen. Taps through it retain normal right-side navigation when fitted.
 - [ ] Share > Add to Home Screen; launch the icon and verify standalone mode and space available. Reselect the book as needed; test progress within that mode.
 - [ ] Portrait/landscape rotations while controls are hidden/visible and after lock show the whole page, no distortion or clipping. Test a wide spread, a portrait scan and a very small image.
 
